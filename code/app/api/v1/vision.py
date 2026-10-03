@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from app.schemas.common import Envelope
 from app.schemas.vision import AnalyzeCompositionRequest, AnalyzeCompositionData
 from app.core.security import verify_token
@@ -24,6 +24,7 @@ router = APIRouter(prefix="/vision", tags=["👁️ 实时取景构图与机位�
 )
 def analyze_composition(
     payload: AnalyzeCompositionRequest,
+    response: Response,
     device_id: str = Depends(verify_token)
 ):
     # 1. 载荷大小兜底校验 (Base64 上限 200KB)
@@ -43,6 +44,7 @@ def analyze_composition(
     # 3. 通过 VLM 服务中台执行摄影美学 Skill 分析 (在线/降级双保险)
     analysis_data = vlm_service.analyze_composition(payload)
     req_id = f"req_{uuid.uuid4().hex[:12]}"
+    response.headers["X-AI-Source"] = "qwen-vl-plus" if settings.DASHSCOPE_API_KEY else "fallback-mock"
     
     return Envelope[AnalyzeCompositionData](
         code=200,

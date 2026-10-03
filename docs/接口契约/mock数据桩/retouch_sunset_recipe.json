@@ -9,7 +9,7 @@
       "style_name_zh": "落日暖调胶片"
     },
     "recommended_recipe": {
-      "lut_id": "lut_warm_film_03",
+      "lut_id": "lut_film_warm_01",
       "lut_intensity": 0.85,
       "parameters": {
         "exposure": 0.15,

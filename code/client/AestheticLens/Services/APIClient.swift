@@ -41,14 +41,23 @@ public final class APIClient: ObservableObject {
         }
     }
     
-    // 当前服务器网关基础地址
-    @Published public var baseURL: String = ServerEnvironment.localDocker.defaultURL
+    private let kSavedBaseURLKey = "AestheticLens_SavedBaseURL"
+    
+    // 当前服务器网关基础地址 (支持本地持久化记忆)
+    @Published public var baseURL: String = ServerEnvironment.localDocker.defaultURL {
+        didSet {
+            UserDefaults.standard.set(baseURL, forKey: kSavedBaseURLKey)
+        }
+    }
     
     // 当前缓存的匿名 JWT 令牌与设备唯一 ID
     @Published public var jwtToken: String? = nil
     public var deviceId: String = UUID().uuidString
     
     public init() {
+        if let saved = UserDefaults.standard.string(forKey: kSavedBaseURLKey), !saved.isEmpty {
+            self.baseURL = saved
+        }
         checkHealth()
     }
     

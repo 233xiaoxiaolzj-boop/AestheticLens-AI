@@ -1,0 +1,384 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1001 /* AestheticLensApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2001 /* AestheticLensApp.swift */; };
+		1002 /* CompositionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2002 /* CompositionModels.swift */; };
+		1003 /* RetouchModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2003 /* RetouchModels.swift */; };
+		1004 /* VideoRetouchModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2004 /* VideoRetouchModels.swift */; };
+		1005 /* MetalRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2005 /* MetalRenderer.swift */; };
+		1006 /* MetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2006 /* MetalView.swift */; };
+		1007 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 2007 /* Shaders.metal */; };
+		1008 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2008 /* APIClient.swift */; };
+		1009 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2009 /* CameraManager.swift */; };
+		1010 /* MotionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2010 /* MotionManager.swift */; };
+		1011 /* VideoPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2011 /* VideoPlayerService.swift */; };
+		1012 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2012 /* CameraView.swift */; };
+		1013 /* DebugSourceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2013 /* DebugSourceSheet.swift */; };
+		1014 /* LevelGaugeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2014 /* LevelGaugeView.swift */; };
+		1015 /* NavigationOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2015 /* NavigationOverlayView.swift */; };
+		1016 /* RetouchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2016 /* RetouchView.swift */; };
+		1017 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2017 /* SettingsView.swift */; };
+		1018 /* VideoRetouchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2018 /* VideoRetouchView.swift */; };
+		1019 /* lut_clean_bright_02.png in Resources */ = {isa = PBXBuildFile; fileRef = 2019 /* lut_clean_bright_02.png */; };
+		1020 /* lut_cyber_teal_orange_03.png in Resources */ = {isa = PBXBuildFile; fileRef = 2020 /* lut_cyber_teal_orange_03.png */; };
+		1021 /* lut_film_warm_01.png in Resources */ = {isa = PBXBuildFile; fileRef = 2021 /* lut_film_warm_01.png */; };
+		1022 /* lut_identity.png in Resources */ = {isa = PBXBuildFile; fileRef = 2022 /* lut_identity.png */; };
+		1023 /* lut_mono_contrast_04.png in Resources */ = {isa = PBXBuildFile; fileRef = 2023 /* lut_mono_contrast_04.png */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0001 /* AestheticLens.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AestheticLens.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2000 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		2001 /* AestheticLensApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AestheticLensApp.swift; sourceTree = "<group>"; };
+		2002 /* CompositionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionModels.swift; sourceTree = "<group>"; };
+		2003 /* RetouchModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetouchModels.swift; sourceTree = "<group>"; };
+		2004 /* VideoRetouchModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoRetouchModels.swift; sourceTree = "<group>"; };
+		2005 /* MetalRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalRenderer.swift; sourceTree = "<group>"; };
+		2006 /* MetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalView.swift; sourceTree = "<group>"; };
+		2007 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
+		2008 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		2009 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
+		2010 /* MotionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionManager.swift; sourceTree = "<group>"; };
+		2011 /* VideoPlayerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerService.swift; sourceTree = "<group>"; };
+		2012 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
+		2013 /* DebugSourceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSourceSheet.swift; sourceTree = "<group>"; };
+		2014 /* LevelGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelGaugeView.swift; sourceTree = "<group>"; };
+		2015 /* NavigationOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationOverlayView.swift; sourceTree = "<group>"; };
+		2016 /* RetouchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetouchView.swift; sourceTree = "<group>"; };
+		2017 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		2018 /* VideoRetouchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoRetouchView.swift; sourceTree = "<group>"; };
+		2019 /* lut_clean_bright_02.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lut_clean_bright_02.png; sourceTree = "<group>"; };
+		2020 /* lut_cyber_teal_orange_03.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lut_cyber_teal_orange_03.png; sourceTree = "<group>"; };
+		2021 /* lut_film_warm_01.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lut_film_warm_01.png; sourceTree = "<group>"; };
+		2022 /* lut_identity.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lut_identity.png; sourceTree = "<group>"; };
+		2023 /* lut_mono_contrast_04.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lut_mono_contrast_04.png; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4000 /* MainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				4001 /* AestheticLens */,
+				4008 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4001 /* AestheticLens */ = {
+			isa = PBXGroup;
+			children = (
+				4002 /* App */,
+				4003 /* Models */,
+				4004 /* Render */,
+				4005 /* Services */,
+				4006 /* Views */,
+				4007 /* Resources */,
+				2000 /* Info.plist */,
+			);
+			path = AestheticLens;
+			sourceTree = "<group>";
+		};
+		4002 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				2001 /* AestheticLensApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		4003 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				2002 /* CompositionModels.swift */,
+				2003 /* RetouchModels.swift */,
+				2004 /* VideoRetouchModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		4004 /* Render */ = {
+			isa = PBXGroup;
+			children = (
+				2005 /* MetalRenderer.swift */,
+				2006 /* MetalView.swift */,
+				2007 /* Shaders.metal */,
+			);
+			path = Render;
+			sourceTree = "<group>";
+		};
+		4005 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				2008 /* APIClient.swift */,
+				2009 /* CameraManager.swift */,
+				2010 /* MotionManager.swift */,
+				2011 /* VideoPlayerService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		4006 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				2012 /* CameraView.swift */,
+				2013 /* DebugSourceSheet.swift */,
+				2014 /* LevelGaugeView.swift */,
+				2015 /* NavigationOverlayView.swift */,
+				2016 /* RetouchView.swift */,
+				2017 /* SettingsView.swift */,
+				2018 /* VideoRetouchView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		4007 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				4009 /* luts */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		4008 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0001 /* AestheticLens.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4009 /* luts */ = {
+			isa = PBXGroup;
+			children = (
+				2019 /* lut_clean_bright_02.png */,
+				2020 /* lut_cyber_teal_orange_03.png */,
+				2021 /* lut_film_warm_01.png */,
+				2022 /* lut_identity.png */,
+				2023 /* lut_mono_contrast_04.png */,
+			);
+			path = luts;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5001 /* AestheticLens */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6001 /* Build configuration list for PBXNativeTarget "AestheticLens" */;
+			buildPhases = (
+				3001 /* Frameworks */,
+				7001 /* Sources */,
+				8001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AestheticLens;
+			productName = AestheticLens;
+			productReference = 0001 /* AestheticLens.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1520;
+				TargetAttributes = {
+					5001 = {
+						CreatedOnToolsVersion = 15.2;
+					};
+				};
+			};
+			buildConfigurationList = 6000 /* Build configuration list for PBXProject "AestheticLens" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				"zh-Hans",
+			);
+			mainGroup = 4000 /* MainGroup */;
+			productRefGroup = 4008 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5001 /* AestheticLens */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1019 /* lut_clean_bright_02.png in Resources */,
+				1020 /* lut_cyber_teal_orange_03.png in Resources */,
+				1021 /* lut_film_warm_01.png in Resources */,
+				1022 /* lut_identity.png in Resources */,
+				1023 /* lut_mono_contrast_04.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1001 /* AestheticLensApp.swift in Sources */,
+				1002 /* CompositionModels.swift in Sources */,
+				1003 /* RetouchModels.swift in Sources */,
+				1004 /* VideoRetouchModels.swift in Sources */,
+				1005 /* MetalRenderer.swift in Sources */,
+				1006 /* MetalView.swift in Sources */,
+				1007 /* Shaders.metal in Sources */,
+				1008 /* APIClient.swift in Sources */,
+				1009 /* CameraManager.swift in Sources */,
+				1010 /* MotionManager.swift in Sources */,
+				1011 /* VideoPlayerService.swift in Sources */,
+				1012 /* CameraView.swift in Sources */,
+				1013 /* DebugSourceSheet.swift in Sources */,
+				1014 /* LevelGaugeView.swift in Sources */,
+				1015 /* NavigationOverlayView.swift in Sources */,
+				1016 /* RetouchView.swift in Sources */,
+				1017 /* SettingsView.swift in Sources */,
+				1018 /* VideoRetouchView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		9001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		9002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_PREVIEWS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = "wholemodule";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		9003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2.0.0;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AestheticLens/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aestheticlens.ai;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1";
+			};
+			name = Debug;
+		};
+		9004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2.0.0;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AestheticLens/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aestheticlens.ai;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6000 /* Build configuration list for PBXProject "AestheticLens" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9001 /* Debug */,
+				9002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6001 /* Build configuration list for PBXNativeTarget "AestheticLens" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9003 /* Debug */,
+				9004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 0000 /* Project object */;
+}

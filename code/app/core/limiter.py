@@ -12,9 +12,21 @@ class SlidingWindowLimiter:
     def _today_str(self) -> str:
         return time.strftime("%Y%m%d", time.localtime())
 
+    def _cleanup_stale_records(self, now: float, today: str):
+        """淘汰超过 24 小时未活跃且已过期的设备内存字典，防止无界增长"""
+        if len(self._vision_records) > 2000:
+            stale_keys = [k for k, v in self._vision_records.items() if v[2] != today and (now - v[0]) > 86400]
+            for k in stale_keys:
+                self._vision_records.pop(k, None)
+        if len(self._retouch_records) > 2000:
+            stale_keys = [k for k, v in self._retouch_records.items() if v[2] != today and (now - v[0]) > 86400]
+            for k in stale_keys:
+                self._retouch_records.pop(k, None)
+
     def check_vision_limit(self, device_id: str):
         now = time.time()
         today = self._today_str()
+        self._cleanup_stale_records(now, today)
         
         last_time, count, date_str = self._vision_records.get(device_id, (0.0, 0, today))
         if date_str != today:

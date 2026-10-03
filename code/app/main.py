@@ -65,6 +65,23 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
+# 启动自检与状态日志
+@app.on_event("startup")
+async def startup_event():
+    # 1. 生产环境硬安全自检 (拒绝默认弱密钥)
+    settings.validate_production_secrets()
+    # 2. VLM 凭据检查与醒目提示
+    if not settings.DASHSCOPE_API_KEY:
+        logger.warning(
+            "\n========================================================================\n"
+            "⚠️ [WARNING] 未检测到 DASHSCOPE_API_KEY 环境变量！\n"
+            "   当前视觉大模型中台将自动运行于离线 Golden Mock 黄金数据桩兜底模式。\n"
+            "   如需在线真实调用 Qwen-VL-Plus，请在环境变量注入 DASHSCOPE_API_KEY！\n"
+            "========================================================================"
+        )
+    else:
+        logger.info("[AestheticLens-AI] ✅ 成功加载 DASHSCOPE_API_KEY，在线大模型中台已就绪。")
+
 # 1. 跨域允许 (CORS)
 app.add_middleware(
     CORSMiddleware,

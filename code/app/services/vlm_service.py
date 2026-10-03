@@ -69,8 +69,8 @@ class VLMService:
                 "navigation_vector": {"forward_steps": 2, "horizontal_translation_m": -0.3, "vertical_translation_cm": -15.0}
             },
             "filter_recommendation": {
-                "recommended_lut_id": "lut_warm_film_03",
-                "preset_name_zh": "落日余晖胶片",
+                "recommended_lut_id": "lut_film_warm_01",
+                "preset_name_zh": "落日暖调胶片",
                 "recommended_intensity": 0.85,
                 "color_adjustments": {"exposure": 0.05, "temperature": 12.0, "contrast": 0.10}
             }
@@ -100,7 +100,7 @@ class VLMService:
                 "style_name_zh": "暖调复古胶片"
             },
             "recommended_recipe": {
-                "lut_id": "lut_warm_film_03",
+                "lut_id": "lut_film_warm_01",
                 "lut_intensity": 0.85,
                 "parameters": {
                     "exposure": 0.15,

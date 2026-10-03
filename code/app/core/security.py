@@ -27,9 +27,10 @@ def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Security(
             }
         )
     token = credentials.credentials
-    # 离线开发与测试专用 mock token 快速放行通道
-    if token.startswith("mock_token_") or token.endswith("_for_offline_dev"):
-        return "device_mock_device"
+    # 仅非生产开发环境允许 mock token 快速放行；生产环境 (production) 强制执行完整 JWT 密码学验签
+    if settings.ENVIRONMENT != "production":
+        if token.startswith("mock_token_") or token.endswith("_for_offline_dev"):
+            return "device_mock_device"
     
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])

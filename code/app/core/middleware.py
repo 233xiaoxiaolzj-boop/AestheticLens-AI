@@ -26,7 +26,7 @@ class PayloadGuardMiddleware(BaseHTTPMiddleware):
                             "data": None
                         }
                     )
-                elif "/retouch/analyze-and-grade" in path and length > settings.RETOUCH_PAYLOAD_LIMIT_BYTES:
+                elif ("/retouch/analyze-and-grade" in path or "/retouch/analyze-video" in path) and length > settings.RETOUCH_PAYLOAD_LIMIT_BYTES:
                     return JSONResponse(
                         status_code=413,
                         content={

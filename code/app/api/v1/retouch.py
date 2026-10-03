@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from app.schemas.common import Envelope
 from app.schemas.retouch import (
     AnalyzeAndGradeRequest,
@@ -30,13 +30,9 @@ router = APIRouter(prefix="/retouch", tags=["🎨 拍后智能美学诊断与色
     """,
     response_description="AI 美学诊断评论与 10 项专业调色滑块配方"
 )
-@router.post(
-    "/retouch-recipe",
-    response_model=Envelope[AnalyzeAndGradeData],
-    include_in_schema=False
-)
 def analyze_and_grade(
     payload: AnalyzeAndGradeRequest,
+    response: Response,
     device_id: str = Depends(verify_token)
 ):
     if len(payload.image_base64) > settings.RETOUCH_PAYLOAD_LIMIT_BYTES:
@@ -53,6 +49,9 @@ def analyze_and_grade(
     
     analysis_data = vlm_service.analyze_retouch(payload)
     req_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    # 注入真实模型溯源响应头
+    response.headers["X-AI-Source"] = "qwen-vl-plus" if settings.DASHSCOPE_API_KEY else "fallback-mock"
     
     return Envelope[AnalyzeAndGradeData](
         code=200,
@@ -75,11 +74,28 @@ def analyze_and_grade(
 )
 def analyze_video(
     payload: AnalyzeVideoRequest,
+    response: Response,
     device_id: str = Depends(verify_token)
 ):
+    # 视频关键帧载荷守卫：多帧 Base64 总体积限制在 2.5MB
+    total_frames_bytes = sum(len(f.image_base64) for f in payload.keyframes)
+    if total_frames_bytes > settings.RETOUCH_PAYLOAD_LIMIT_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "code": 41301,
+                "message": f"视频关键帧总载荷超过上限 ({settings.RETOUCH_PAYLOAD_LIMIT_BYTES // 1024 // 1024} MB)",
+                "data": None
+            }
+        )
+
     limiter.check_retouch_limit(device_id)
     analysis_data = vlm_service.analyze_video(payload)
     req_id = f"req_{uuid.uuid4().hex[:12]}"
+    
+    # 注入真实模型溯源响应头
+    response.headers["X-AI-Source"] = "qwen-vl-plus" if settings.DASHSCOPE_API_KEY else "fallback-mock"
+    
     return Envelope[VideoRetouchData](
         code=200,
         message="success",

@@ -1,6 +1,6 @@
 # AestheticLens-AI (灵瞳智拍) —— 项目总说明书
 
-> **项目状态**：`Phase 5 Active (工序 11 Zeabur 轻量 PaaS 云端生产上线推进中，本地 Docker/Git 全面就绪)`  
+> **项目状态**：`Phase 5 Active (第三轮审计 12 项缺陷全量修复通过，iOS Xcode 原生工程体系就绪，单测 25/25 绿灯，待云端上线)`  
 > **服务首选目标**：**Apple iPhone (iOS 原生生态)**  
 > **核心定位**：基于端云协同与 Metal 实时渲染的 AI 智能构图、机位空间导航与拍后智能调色相机  
 > **极简上线方案**：选项 A（Zeabur 轻量 PaaS 托管 + 阿里云 Qwen-VL + 个人免费 Apple ID 直装 + AltStore 局域网续期 + 演示防翻车双保险，总投入 10~15 元）
@@ -83,6 +83,8 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 | │   ├── `test_e2e_integration.py` | 文件 | **【工序 10】端云全链路 E2E 集成联调测试 (6项全部通过)**。端到端验证设备注册、取景姿态抽帧分析、3D LUT 贴图直链下载、拍后快门拍照与 10 维调色滑块、未授权拦截、以及直接跨网络向运行中的本地 Docker 容器发起真实请求验证！ |
 | │   └── **`test_video_retouch.py`** | 文件 | **【REQ-13 专项】成品视频 AI 调色与多关键帧接口测试 (2项全绿)**。验证多关键帧上传、运镜连贯性诊断、全局电影级调色配方输出与限流防护。 |
 | └── **`client/`** | 目录 | **【手机端】iOS 原生 App 源代码根目录**。纯原生 SwiftUI + Metal + CoreMotion 架构，无臃肿第三方依赖。 |
+|     ├── **`AestheticLens.xcodeproj/`** | 目录 | **【Xcode 官方标准工程包】**。包含完整 `project.pbxproj` 配置文件，定义 Target 依赖、Swift 5.9 编译参数、Metal 自动编译管线与资源打包，**Mac 用户直接双击即可一键在 Xcode 中打开并直装真机**！ |
+|     ├── **`Package.swift`** | 文件 | **Swift Package Manager (SPM) 依赖包描述文件**。支持现代 Swift 模块化引入与自动化测试。 |
 |     └── **`AestheticLens/`** | 目录 | **iPhone 原生客户端主应用包**。 |
 |         ├── `Info.plist` | 文件 | **权限声明与元数据配置**。声明相机、传感器与相册访问权限文案（严格符合 App Store 4.x 审核准则与 PIPL）。 |
 |         ├── **`App/`** | 目录 | **App 程序生命周期入口**。 |

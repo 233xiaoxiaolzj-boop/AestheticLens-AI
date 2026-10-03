@@ -1,11 +1,16 @@
+import time
 import uuid
-from fastapi import APIRouter
+from collections import defaultdict
+from fastapi import APIRouter, Request, HTTPException
 from app.schemas.common import Envelope
 from app.schemas.auth import DeviceRegisterRequest, DeviceRegisterData, DailyQuota
 from app.core.security import create_access_token
 from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["🔐 设备认证与鉴权 (Device Auth)"])
+
+# 单 IP 注册频控：每 60 秒最多允许注册 30 次
+_ip_register_records = defaultdict(list)
 
 @router.post(
     "/device-register",
@@ -15,11 +20,25 @@ router = APIRouter(prefix="/auth", tags=["🔐 设备认证与鉴权 (Device Aut
 接收手机端设备唯一指纹与平台标识，签发 30 天有效期的 JWT Bearer Token，并返回该设备的单日调用配额：
 * **取景分析日配额**：300 次/天
 * **拍后调色日配额**：50 次/天
-后续受保护接口需在请求头携带：`Authorization: Bearer <token>`。
+内置单 IP 注册频控（30次/分钟），后续受保护接口需在请求头携带：`Authorization: Bearer <token>`。
     """,
     response_description="设备注册成功并返回 Token 与每日配额"
 )
-def register_device(payload: DeviceRegisterRequest):
+def register_device(payload: DeviceRegisterRequest, request: Request):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    now = time.time()
+    
+    # 过滤 60 秒以外的记录
+    recent_attempts = [t for t in _ip_register_records[client_ip] if now - t < 60]
+    if len(recent_attempts) >= 30:
+        raise HTTPException(
+            status_code=429,
+            detail={"code": 42901, "message": "该网络来源注册过于频繁，请稍候再试", "data": None},
+            headers={"Retry-After": "60"}
+        )
+    recent_attempts.append(now)
+    _ip_register_records[client_ip] = recent_attempts
+
     req_id = f"req_{uuid.uuid4().hex[:12]}"
     token = create_access_token(payload.device_id)
     

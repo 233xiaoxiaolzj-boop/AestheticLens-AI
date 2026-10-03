@@ -123,11 +123,12 @@ def test_e2e_shutter_capture_and_retouch_recipe(client: TestClient):
     assert resp.status_code == 200
     res_data = resp.json()["data"]
     
-    # 验证别名路由可用 (使用新设备Token避免同一设备频控限制)
-    reg_alias = client.post("/api/v1/auth/device-register", json={"device_id": "device-retouch-alias-e2e"})
-    token_alias = reg_alias.json()["data"]["token"]
-    resp_alias = client.post("/api/v1/retouch/retouch-recipe", json=payload, headers={"Authorization": f"Bearer {token_alias}"})
-    assert resp_alias.status_code == 200
+    # 验证 X-AI-Source 响应头存在
+    assert "x-ai-source" in resp.headers or "X-AI-Source" in resp.headers
+    
+    # 验证幽灵别名路由已彻底下线 (404 契约守卫)
+    resp_alias = client.post("/api/v1/retouch/retouch-recipe", json=payload, headers=headers)
+    assert resp_alias.status_code == 404
     
     # 校验 AI 美学诊断
     diag = res_data["aesthetic_diagnosis"]

@@ -5,39 +5,39 @@ from app.schemas.assets import FilterItem
 
 router = APIRouter(prefix="/assets", tags=["📦 胶片滤镜与 3D LUT 资产 (Filter Assets)"])
 
-# 4 套经典 LUT 基础元数据
+# 4 套经典 512x512 3D LUT 真实元数据 (以 static/luts/ 为单一事实来源 SSOT)
 FILTERS_DB = [
     FilterItem(
-        lut_id="lut_warm_film_03",
-        name_zh="落日余晖胶片",
+        lut_id="lut_film_warm_01",
+        name_zh="落日暖调胶片",
         category="film",
-        lut_url="https://assets.aestheticlens.ai/luts/lut_warm_film_03.png",
-        thumbnail_url="https://assets.aestheticlens.ai/thumbnails/lut_warm_film_03.jpg",
-        md5="e8b5c92f1d4a6789e0bc123456789abc"
+        lut_url="/static/luts/lut_film_warm_01.png",
+        thumbnail_url="/static/luts/lut_film_warm_01.png",
+        md5="51345148ca63efa0bd4efddd49b4efe9"
     ),
     FilterItem(
-        lut_id="lut_cyber_neon_01",
-        name_zh="赛博霓虹夜景",
+        lut_id="lut_clean_bright_02",
+        name_zh="清透质感人像",
+        category="portrait",
+        lut_url="/static/luts/lut_clean_bright_02.png",
+        thumbnail_url="/static/luts/lut_clean_bright_02.png",
+        md5="e14285993df00da59d5b207aa31ed629"
+    ),
+    FilterItem(
+        lut_id="lut_cyber_teal_orange_03",
+        name_zh="赛博青橙夜景",
         category="cyberpunk",
-        lut_url="https://assets.aestheticlens.ai/luts/lut_cyber_neon_01.png",
-        thumbnail_url="https://assets.aestheticlens.ai/thumbnails/lut_cyber_neon_01.jpg",
-        md5="a1b2c3d4e5f67890123456789abcdef0"
+        lut_url="/static/luts/lut_cyber_teal_orange_03.png",
+        thumbnail_url="/static/luts/lut_cyber_teal_orange_03.png",
+        md5="11bc10681a33ee21cdb13714b2e26be7"
     ),
     FilterItem(
-        lut_id="lut_minimal_bw_02",
+        lut_id="lut_mono_contrast_04",
         name_zh="德味高反差黑白",
         category="monochrome",
-        lut_url="https://assets.aestheticlens.ai/luts/lut_minimal_bw_02.png",
-        thumbnail_url="https://assets.aestheticlens.ai/thumbnails/lut_minimal_bw_02.jpg",
-        md5="c4d5e6f7a8b90123456789abcdef0123"
-    ),
-    FilterItem(
-        lut_id="lut_vintage_green_04",
-        name_zh="清冷质感绿调",
-        category="vintage",
-        lut_url="https://assets.aestheticlens.ai/luts/lut_vintage_green_04.png",
-        thumbnail_url="https://assets.aestheticlens.ai/thumbnails/lut_vintage_green_04.jpg",
-        md5="f9e8d7c6b5a43210987654321fedcba9"
+        lut_url="/static/luts/lut_mono_contrast_04.png",
+        thumbnail_url="/static/luts/lut_mono_contrast_04.png",
+        md5="9cf9ebe44f1d7374ae80532b8acc034e"
     )
 ]
 
