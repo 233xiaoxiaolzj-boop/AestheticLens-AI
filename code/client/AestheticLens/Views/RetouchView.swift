@@ -244,7 +244,7 @@ private struct SliderRow: View {
                 .accentColor(Color(red: 1.0, green: 0.85, blue: 0.4))
             
             Text(String(format: "%+.2f", value))
-                .font(.system(size: 12, weight: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.4))
                 .frame(width: 55, alignment: .trailing)
         }

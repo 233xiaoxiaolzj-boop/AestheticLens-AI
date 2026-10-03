@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import UIKit
 import Combine
 
 /// 视频播放与调色导出管线服务 (REQ-13)

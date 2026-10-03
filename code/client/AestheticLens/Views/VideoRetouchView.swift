@@ -221,7 +221,7 @@ public struct VideoRetouchView: View {
             
             // 当前时间戳
             Text(formatTime(videoService.currentTime))
-                .font(.system(size: 12, weight: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(.white)
             
             // 进度拖拽滑块
@@ -234,7 +234,7 @@ public struct VideoRetouchView: View {
             
             // 总时长
             Text(formatTime(videoService.duration))
-                .font(.system(size: 12, weight: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(.gray)
         }
         .padding(.horizontal, 20)
@@ -326,7 +326,7 @@ public struct VideoRetouchView: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.white)
                 Text("\(Int(videoService.exportProgress * 100))%")
-                    .font(.system(size: 13, weight: .monospaced))
+                    .font(.system(size: 13, design: .monospaced))
                     .foregroundColor(Color(red: 0.3, green: 0.8, blue: 1.0))
             }
             .padding(30)
@@ -370,7 +370,7 @@ private struct SliderRow: View {
             Slider(value: $value, in: range, step: step)
                 .accentColor(Color(red: 0.3, green: 0.8, blue: 1.0))
             Text(String(format: "%+.2f", value))
-                .font(.system(size: 12, weight: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(Color(red: 0.3, green: 0.8, blue: 1.0))
                 .frame(width: 55, alignment: .trailing)
         }
