@@ -28,8 +28,11 @@ public struct VideoRetouchView: View {
     @State private var selectedTab: Int = 0 // 0: 基础光影, 1: 色彩科学, 2: 质感风格
     @State private var isLoadingRecipe: Bool = true
     @State private var showExportAlert: Bool = false
+    public var videoURL: URL? = nil
     
-    public init() {}
+    public init(videoURL: URL? = nil) {
+        self.videoURL = videoURL
+    }
     
     public var body: some View {
         ZStack {
@@ -58,6 +61,9 @@ public struct VideoRetouchView: View {
             }
         }
         .onAppear {
+            if let url = videoURL {
+                videoService.loadVideo(url: url)
+            }
             loadVideoRecipeData()
         }
         .alert(isPresented: $showExportAlert) {

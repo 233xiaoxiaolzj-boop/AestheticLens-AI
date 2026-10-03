@@ -11,6 +11,7 @@ public final class MetalRenderer: NSObject, MTKViewDelegate {
     
     // 渲染管线与状态
     private var pipelineState: MTLRenderPipelineState?
+    private var passThroughPipelineState: MTLRenderPipelineState?
     private var textureCache: CVMetalTextureCache?
     private var currentTexture: MTLTexture?
     private var lutTexture: MTLTexture?
@@ -39,21 +40,35 @@ public final class MetalRenderer: NSObject, MTKViewDelegate {
     
     private func setupPipeline() {
         guard let defaultLibrary = device.makeDefaultLibrary(),
-              let vertexFunc = defaultLibrary.makeFunction(name: "passThroughVertex"),
-              let fragmentFunc = defaultLibrary.makeFunction(name: "lutFragmentShader") else {
-            print("[MetalRenderer] 默认 Shader 库未找到或尚未编译，进入 PassThrough 纯透模式")
+              let vertexFunc = defaultLibrary.makeFunction(name: "passThroughVertex") else {
+            print("[MetalRenderer] 默认 Shader 库未找到或尚未编译")
             return
         }
         
-        let pipelineDesc = MTLRenderPipelineDescriptor()
-        pipelineDesc.vertexFunction = vertexFunc
-        pipelineDesc.fragmentFunction = fragmentFunc
-        pipelineDesc.colorAttachments[0].pixelFormat = .bgra8Unorm
+        // 1. 直通原画管线 (PassThrough)
+        if let passFragmentFunc = defaultLibrary.makeFunction(name: "passThroughFragmentShader") {
+            let passDesc = MTLRenderPipelineDescriptor()
+            passDesc.vertexFunction = vertexFunc
+            passDesc.fragmentFunction = passFragmentFunc
+            passDesc.colorAttachments[0].pixelFormat = .bgra8Unorm
+            do {
+                self.passThroughPipelineState = try device.makeRenderPipelineState(descriptor: passDesc)
+            } catch {
+                print("[MetalRenderer] 直通管线创建失败: \(error)")
+            }
+        }
         
-        do {
-            self.pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDesc)
-        } catch {
-            print("[MetalRenderer] 渲染管线创建失败: \(error)")
+        // 2. 3D LUT 胶片滤镜管线
+        if let lutFragmentFunc = defaultLibrary.makeFunction(name: "lutFragmentShader") {
+            let lutDesc = MTLRenderPipelineDescriptor()
+            lutDesc.vertexFunction = vertexFunc
+            lutDesc.fragmentFunction = lutFragmentFunc
+            lutDesc.colorAttachments[0].pixelFormat = .bgra8Unorm
+            do {
+                self.pipelineState = try device.makeRenderPipelineState(descriptor: lutDesc)
+            } catch {
+                print("[MetalRenderer] LUT 管线创建失败: \(error)")
+            }
         }
     }
     
@@ -69,6 +84,25 @@ public final class MetalRenderer: NSObject, MTKViewDelegate {
             print("[MetalRenderer] 成功加载 LUT 纹理: \(url.lastPathComponent)")
         } catch {
             print("[MetalRenderer] 加载 LUT 纹理失败: \(error)")
+        }
+    }
+    
+    /// 切换预设滤镜 (支持自然原画与预置胶片)
+    public func applyPreset(_ presetName: String) {
+        if presetName == "自然原画" || presetName.lowercased() == "natural" {
+            self.lutTexture = nil
+            return
+        }
+        let fileName: String
+        switch presetName {
+        case "落日暖调": fileName = "lut_film_warm_01"
+        case "纯净清透": fileName = "lut_clean_bright_02"
+        case "赛博青橙": fileName = "lut_cyber_teal_orange_03"
+        case "德味黑白": fileName = "lut_mono_contrast_04"
+        default: fileName = "lut_film_warm_01"
+        }
+        if let url = Bundle.main.url(forResource: fileName, withExtension: "png") {
+            loadLUT(from: url)
         }
     }
     
@@ -106,10 +140,8 @@ public final class MetalRenderer: NSObject, MTKViewDelegate {
               let renderPassDesc = view.currentRenderPassDescriptor,
               let commandBuffer = commandQueue.makeCommandBuffer() else { return }
         
-        guard let pipeline = pipelineState,
-              let camTexture = currentTexture,
-              let lutTex = lutTexture else {
-            // 无滤镜或管线未就绪时的兜底清屏
+        guard let camTexture = currentTexture else {
+            // 首帧到达前的兜底清屏
             if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDesc) {
                 encoder.endEncoding()
             }
@@ -118,17 +150,24 @@ public final class MetalRenderer: NSObject, MTKViewDelegate {
             return
         }
         
-        // 绑定 Shader 与片元着色器输入纹理
-        if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDesc) {
-            encoder.setRenderPipelineState(pipeline)
-            encoder.setFragmentTexture(camTexture, index: 0)
-            encoder.setFragmentTexture(lutTex, index: 1)
-            var intensity = self.lutIntensity
-            encoder.setFragmentBytes(&intensity, length: MemoryLayout<Float>.size, index: 0)
-            
-            // 绘制全屏两个三角形覆盖画幅
-            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
-            encoder.endEncoding()
+        // 渲染分支：如果有 LUT 则走 3D LUT 片元着色器；否则走直通着色器显示原画
+        if let lutTex = lutTexture, let pipeline = pipelineState {
+            if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDesc) {
+                encoder.setRenderPipelineState(pipeline)
+                encoder.setFragmentTexture(camTexture, index: 0)
+                encoder.setFragmentTexture(lutTex, index: 1)
+                var intensity = self.lutIntensity
+                encoder.setFragmentBytes(&intensity, length: MemoryLayout<Float>.size, index: 0)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+                encoder.endEncoding()
+            }
+        } else if let passThrough = passThroughPipelineState {
+            if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDesc) {
+                encoder.setRenderPipelineState(passThrough)
+                encoder.setFragmentTexture(camTexture, index: 0)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+                encoder.endEncoding()
+            }
         }
         
         commandBuffer.present(drawable)

@@ -87,3 +87,13 @@ fragment float4 lutFragmentShader(
     float3 finalRGB = mix(rgb, gradedRGB, intensity);
     return float4(finalRGB, rawColor.a);
 }
+
+// 原画直通片元着色器：无 LUT 或自然原画时直接渲染相机输入纹理，保证绝对不黑屏
+fragment float4 passThroughFragmentShader(
+    VertexOut in [[stage_in]],
+    texture2d<float> cameraTexture [[texture(0)]]
+) {
+    constexpr sampler linearSampler(coord::normalized, filter::linear, address::clamp_to_edge);
+    return cameraTexture.sample(linearSampler, in.texCoords);
+}
+
