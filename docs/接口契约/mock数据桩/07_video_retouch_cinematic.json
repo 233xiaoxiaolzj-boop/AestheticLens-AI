@@ -1,0 +1,33 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "vid_retouch_cinematic_mock",
+  "data": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "视频运镜平稳，多帧光比连贯；AI已自动平抑动态高光跳跃，增强青橙冷暖反差，呈现电影级质感。",
+      "target_style": "cinematic_teal_orange",
+      "style_name_zh": "赛博青橙电影感",
+      "camera_movement_critique": "水平运镜平稳，帧间曝光平滑，具备良好电影叙事感"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_cyber_teal_orange_03",
+      "lut_intensity": 0.80,
+      "parameters": {
+        "exposure": 0.10,
+        "contrast": 0.18,
+        "highlights": -0.20,
+        "shadows": 0.15,
+        "temperature": -8.0,
+        "tint": 2.0,
+        "vibrance": 0.16,
+        "saturation": 0.05,
+        "vignette": -0.12,
+        "grain": 0.04
+      }
+    },
+    "scene_continuity": {
+      "consistency_score": 0.92,
+      "detected_flickers": false
+    }
+  }
+}

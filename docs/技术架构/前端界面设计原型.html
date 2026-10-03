@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>AestheticLens-AI (灵瞳智拍) —— 前端交互界面全景原型</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.4), inset 0 0 10px rgba(34, 197, 94, 0.2); }
+      50% { box-shadow: 0 0 25px rgba(34, 197, 94, 0.8), inset 0 0 15px rgba(34, 197, 94, 0.5); }
+    }
+    .hud-glow {
+      animation: pulse-glow 2.5s infinite ease-in-out;
+    }
+    .phone-shadow {
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 12px #262626, 0 0 0 14px #404040;
+    }
+    /* 自定义滑块轨道与手柄 */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      height: 4px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #fbbf24;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-neutral-100 min-h-screen flex flex-col items-center py-8 font-sans select-none antialiased">
+
+  <!-- 页面顶部品牌与模式切换 -->
+  <header class="text-center mb-6">
+    <div class="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold mb-2">
+      <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+      AestheticLens-AI · iOS 原生前端视觉原型
+    </div>
+    <h1 class="text-2xl font-bold tracking-tight text-neutral-100">灵瞳智拍 —— 核心前端画面设计</h1>
+    <p class="text-xs text-neutral-400 mt-1">可在下方 iPhone 16 Pro 容器中自由切换【取景器 HUD】与【拍后调色工作台】实机操作</p>
+    
+    <!-- 视图切换 Segmented Control (三模态) -->
+    <div class="mt-4 inline-flex p-1 bg-neutral-900 border border-neutral-800 rounded-xl">
+      <button id="tab-camera" onclick="switchView('camera')" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-400 text-neutral-950 shadow">
+        📷 1. 取景器 HUD
+      </button>
+      <button id="tab-retouch" onclick="switchView('retouch')" class="px-4 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all">
+        🎨 2. 照片调色台
+      </button>
+      <button id="tab-video" onclick="switchView('video')" class="px-4 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all">
+        🎬 3. 视频调色调试台 (REQ-13)
+      </button>
+    </div>
+  </header>
+
+  <!-- iPhone 16 Pro 手机真机外观容器 (393 x 852 比例) -->
+  <div class="relative w-[390px] h-[820px] bg-black rounded-[52px] overflow-hidden phone-shadow border border-neutral-800 flex flex-col justify-between">
+    
+    <!-- 顶部灵动岛 Dynamic Island -->
+    <div class="absolute top-2.5 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-full z-50 flex items-center justify-between px-3 border border-neutral-800/60 pointer-events-none">
+      <div class="w-2.5 h-2.5 rounded-full bg-neutral-900 border border-neutral-800"></div>
+      <div class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span class="text-[10px] text-neutral-400 font-mono">60 FPS</span>
+      </div>
+    </div>
+
+    <!-- 顶部状态栏 -->
+    <div class="h-11 px-7 flex justify-between items-center text-xs text-neutral-300 font-semibold pt-1 z-40">
+      <span>09:41</span>
+      <div class="flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.25c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l.64-.64C8.03 20.26 9.93 21 12 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>
+        <span class="text-[11px] font-mono">5G</span>
+        <div class="w-5 h-2.5 border border-neutral-400 rounded-sm p-0.5 flex items-center"><div class="w-full h-full bg-emerald-400 rounded-2xs"></div></div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 界面 A：【60fps 实时取景器 HUD 界面】 -->
+    <!-- ========================================================================= -->
+    <div id="view-camera" class="relative flex-1 flex flex-col justify-between overflow-hidden">
+      
+      <!-- 相机真实场景渲染底图 (渐变夕阳逆光人像模拟) -->
+      <div class="absolute inset-0 bg-gradient-to-b from-orange-400 via-rose-600 to-neutral-950 z-0 flex items-center justify-center">
+        <!-- 画面元素剪影：人像与太阳 -->
+        <div class="absolute top-1/4 right-1/4 w-28 h-28 rounded-full bg-amber-200/90 blur-xl"></div>
+        <div class="absolute bottom-16 w-32 h-64 bg-neutral-950/90 rounded-t-full filter blur-[1px]"></div>
+      </div>
+
+      <!-- 顶部控制微标 -->
+      <div class="relative z-30 px-6 py-2 flex justify-between items-center text-white/90">
+        <button class="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/10 hover:bg-black/60">
+          ⚡
+        </button>
+        <div class="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[11px] font-medium text-amber-300">
+          LUT: 落日余晖胶片 (Classic)
+        </div>
+        <button class="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/10 hover:bg-black/60">
+          ⚙️
+        </button>
+      </div>
+
+      <!-- 中间 HUD 区域：AR 黄金虚线构图框 + 空间机位导航指示 + 60Hz 动态绿色水平仪 -->
+      <div class="relative z-20 flex-1 flex flex-col items-center justify-center px-6">
+        
+        <!-- 空间机位 4 向导航指示胶囊 (黄色动态胶囊) -->
+        <div class="mb-4 px-4 py-1.5 bg-amber-400/90 backdrop-blur-md rounded-full text-neutral-950 text-xs font-bold shadow-lg flex items-center gap-1.5 animate-bounce">
+          <span>▲ 前进两步 放低机位仰拍</span>
+        </div>
+
+        <!-- AR 黄金分割虚线裁切框 (Suggested Crop Box) -->
+        <div class="relative w-[280px] h-[360px] border-2 border-dashed border-amber-300/80 rounded-2xl flex items-center justify-center shadow-2xl">
+          <!-- 三分线九宫格细线 -->
+          <div class="absolute inset-x-0 top-1/3 border-b border-white/20"></div>
+          <div class="absolute inset-x-0 top-2/3 border-b border-white/20"></div>
+          <div class="absolute inset-y-0 left-1/3 border-r border-white/20"></div>
+          <div class="absolute inset-y-0 left-2/3 border-r border-white/20"></div>
+
+          <!-- 60Hz 动态微光绿色十字准星水平仪 HUD -->
+          <div class="relative w-24 h-24 rounded-full border border-emerald-400/70 flex items-center justify-center hud-glow">
+            <!-- 十字瞄准准星 -->
+            <div class="w-full h-0.5 bg-emerald-400"></div>
+            <div class="absolute h-full w-0.5 bg-emerald-400"></div>
+            <!-- 中心水平指示器 -->
+            <div class="absolute w-3 h-3 rounded-full bg-emerald-400 shadow-md"></div>
+            <!-- 倾角数字度数实时显示 -->
+            <span class="absolute -bottom-6 text-[10px] font-mono text-emerald-400 bg-black/50 px-1.5 py-0.5 rounded">
+              0.0° 对准吸附
+            </span>
+          </div>
+        </div>
+
+        <!-- 视觉缺陷前置锚定标签 -->
+        <div class="mt-3 flex gap-1.5">
+          <span class="text-[10px] bg-black/50 text-neutral-300 px-2 py-0.5 rounded-full border border-white/10">#头顶留白大</span>
+          <span class="text-[10px] bg-black/50 text-neutral-300 px-2 py-0.5 rounded-full border border-white/10">#面部逆光补偿</span>
+        </div>
+      </div>
+
+      <!-- 底部控制栏：相册、快门、翻转与滤镜抽屉 -->
+      <div class="relative z-30 pb-10 pt-4 px-8 bg-gradient-to-t from-black via-black/80 to-transparent flex justify-between items-center">
+        <!-- 左侧：相册缩略图 -->
+        <div class="w-12 h-12 rounded-xl border border-white/20 overflow-hidden bg-neutral-800 flex items-center justify-center text-sm shadow">
+          🖼️
+        </div>
+
+        <!-- 中间：大圆形大快门按钮 (外金内白，点击带反馈动效) -->
+        <button onclick="triggerShutter()" class="group relative w-18 h-18 p-1 rounded-full border-4 border-amber-400 flex items-center justify-center active:scale-95 transition-transform">
+          <div class="w-14 h-14 rounded-full bg-white group-hover:bg-amber-100 transition-colors shadow-inner"></div>
+        </button>
+
+        <!-- 右侧：镜头翻转按钮 -->
+        <button class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white text-lg border border-white/10">
+          🔄
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 界面 B：【拍后专业调色工作台 (REQ-12)】 -->
+    <!-- ========================================================================= -->
+    <div id="view-retouch" class="relative flex-1 flex flex-col justify-between overflow-hidden hidden bg-neutral-950">
+      
+      <!-- 拍后顶部导航栏 -->
+      <div class="px-5 py-2 flex justify-between items-center border-b border-neutral-800/80 z-20">
+        <button onclick="switchView('camera')" class="w-8 h-8 rounded-full bg-neutral-800 text-neutral-300 flex items-center justify-center text-xs">
+          ✕
+        </button>
+        <div class="text-center">
+          <span class="text-xs font-bold text-amber-400">落日暖调胶片</span>
+          <span class="block text-[10px] text-neutral-400">AI 智能配方 (10 滑块微调)</span>
+        </div>
+        <button onclick="alert('成片已保存至相册并应用无损元数据！')" class="px-3 py-1 rounded-full bg-amber-400 text-neutral-950 text-xs font-bold shadow">
+          保存成片
+        </button>
+      </div>
+
+      <!-- 成片预览大图 (支持长按对比原图交互) -->
+      <div class="relative flex-1 mx-4 my-2 rounded-2xl overflow-hidden border border-neutral-800 flex items-center justify-center group select-none">
+        <div id="preview-image" class="w-full h-full bg-gradient-to-tr from-amber-600 via-rose-500 to-indigo-900 transition-all duration-150 flex items-center justify-center">
+          <div class="text-center text-white/90">
+            <span class="text-3xl block mb-1">🌅</span>
+            <span class="text-xs font-medium tracking-wide">AI 电影级调色成片</span>
+          </div>
+        </div>
+
+        <!-- 长按原图交互遮罩 -->
+        <button id="btn-compare" class="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md text-[11px] text-neutral-200 rounded-full border border-white/10 hover:bg-black/80 active:scale-95">
+          按住对比原片
+        </button>
+        <div id="compare-tag" class="absolute top-3 left-3 px-2 py-0.5 bg-neutral-900/80 text-[10px] text-amber-400 rounded hidden">
+          正在对比原片 (未处理)
+        </div>
+      </div>
+
+      <!-- AI 摄影大师美学诊断卡片 -->
+      <div class="mx-4 mb-2 p-2.5 bg-neutral-900/90 border border-neutral-800 rounded-xl flex items-start gap-2">
+        <span class="text-sm">✨</span>
+        <div class="flex-1 text-left">
+          <span class="text-[11px] font-bold text-amber-400 block">AI 摄影大师美学诊断:</span>
+          <p class="text-[11px] text-neutral-300 leading-tight">
+            逆光人物面部欠曝，且高光过曝洗白；AI 已自动压暗高光 -0.25 锁住浓郁晚霞，提亮阴影 +0.20 还原发丝细节。
+          </p>
+        </div>
+      </div>
+
+      <!-- 底部 10 项专业参数滑块工作台 -->
+      <div class="bg-neutral-900/95 border-t border-neutral-800/80 px-4 py-3 pb-8">
+        <!-- 分类选择 Tabs -->
+        <div class="grid grid-cols-3 gap-1 bg-neutral-950 p-1 rounded-lg text-center text-xs mb-3">
+          <button id="subtab-light" onclick="switchSliderTab('light')" class="py-1 rounded bg-amber-400 text-neutral-950 font-bold text-[11px]">基础光影</button>
+          <button id="subtab-color" onclick="switchSliderTab('color')" class="py-1 rounded text-neutral-400 hover:text-white text-[11px]">色彩科学</button>
+          <button id="subtab-style" onclick="switchSliderTab('style')" class="py-1 rounded text-neutral-400 hover:text-white text-[11px]">质感胶片</button>
+        </div>
+
+        <!-- 基础光影 4 项 -->
+        <div id="panel-light" class="space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">曝光补偿</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.15" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-exp')">
+            <span id="val-exp" class="w-10 text-right font-mono text-amber-400">+0.15</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">对比度</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.10" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-contrast')">
+            <span id="val-contrast" class="w-10 text-right font-mono text-amber-400">+0.10</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">高光压制</span>
+            <input type="range" min="-1" max="1" step="0.05" value="-0.25" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-high')">
+            <span id="val-high" class="w-10 text-right font-mono text-amber-400">-0.25</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">阴影提亮</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.20" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-shadow')">
+            <span id="val-shadow" class="w-10 text-right font-mono text-amber-400">+0.20</span>
+          </div>
+        </div>
+
+        <!-- 色彩科学 4 项 -->
+        <div id="panel-color" class="space-y-2 text-xs hidden">
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">色温 (K)</span>
+            <input type="range" min="-30" max="30" step="1" value="12" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-temp')">
+            <span id="val-temp" class="w-10 text-right font-mono text-amber-400">+12.0</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">色调 (Tint)</span>
+            <input type="range" min="-20" max="20" step="1" value="3" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-tint')">
+            <span id="val-tint" class="w-10 text-right font-mono text-amber-400">+3.0</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">自然饱和度</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.22" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-vib')">
+            <span id="val-vib" class="w-10 text-right font-mono text-amber-400">+0.22</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">纯饱和度</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.05" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-sat')">
+            <span id="val-sat" class="w-10 text-right font-mono text-amber-400">+0.05</span>
+          </div>
+        </div>
+
+        <!-- 质感风格 2 项 -->
+        <div id="panel-style" class="space-y-2 text-xs hidden">
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">胶片暗角</span>
+            <input type="range" min="-1" max="0" step="0.05" value="-0.15" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-vig')">
+            <span id="val-vig" class="w-10 text-right font-mono text-amber-400">-0.15</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">噪点颗粒</span>
+            <input type="range" min="0" max="0.5" step="0.02" value="0.08" class="flex-1 mx-2" oninput="updateSliderVal(this, 'val-grain')">
+            <span id="val-grain" class="w-10 text-right font-mono text-amber-400">+0.08</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 界面 C：【成品视频 AI 调色调试工作台 (REQ-13)】 -->
+    <!-- ========================================================================= -->
+    <div id="view-video" class="relative flex-1 flex flex-col justify-between overflow-hidden bg-neutral-950 hidden">
+      
+      <!-- 顶部操作栏 -->
+      <div class="px-6 py-2 flex justify-between items-center z-20 border-b border-neutral-900">
+        <button onclick="switchView('camera')" class="w-8 h-8 rounded-full bg-neutral-900 flex items-center justify-center text-white/80 hover:text-white text-xs">
+          ✕
+        </button>
+        <div class="text-center">
+          <div class="text-xs font-bold text-cyan-400">赛博青橙电影感 (Cinema Teal & Orange)</div>
+          <div class="text-[10px] text-neutral-400">AI 视频全局母版配方</div>
+        </div>
+        <button onclick="triggerExportVideo()" class="px-3 py-1 bg-cyan-400 hover:bg-cyan-300 text-neutral-950 font-bold rounded-full text-xs shadow-md active:scale-95 transition-all">
+          导出视频
+        </button>
+      </div>
+
+      <!-- 视频画面视窗 (带长按对比手势与60fps动态色彩模拟) -->
+      <div class="relative px-5 pt-2 pb-1 z-10">
+        <div id="video-canvas" class="relative w-full h-48 rounded-2xl overflow-hidden bg-gradient-to-br from-cyan-600 via-amber-600 to-neutral-900 border border-white/10 shadow-2xl flex flex-col justify-between p-3 transition-all duration-300">
+          
+          <!-- 视频顶层状态 -->
+          <div class="flex justify-between items-center text-[10px] text-white/90">
+            <span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md font-mono text-cyan-300 flex items-center gap-1">
+              <span id="video-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              60FPS Metal 渲染中
+            </span>
+            <span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md">1080P HEVC</span>
+          </div>
+
+          <!-- 对比指示浮层 -->
+          <div id="video-compare-tag" class="hidden absolute inset-0 bg-neutral-900/90 z-20 flex flex-col items-center justify-center">
+            <span class="text-xs font-bold text-white tracking-widest bg-black/70 px-3 py-1 rounded-full border border-white/20">
+              【长按中：正在对比原片视频 (无调色)】
+            </span>
+            <span class="text-[10px] text-neutral-400 mt-1">松手立即恢复 AI 电影级青橙调色</span>
+          </div>
+
+          <!-- 底部提示 -->
+          <div class="flex justify-between items-end">
+            <button id="btn-video-compare" class="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] text-white/90 border border-white/20 active:bg-cyan-400 active:text-neutral-950 select-none">
+              👆 长按比对原片
+            </button>
+            <span class="text-[10px] text-cyan-200/90 bg-black/60 px-2 py-0.5 rounded">LUT: Cyber_Teal_Orange_03</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 视频播放控制条 (播放/暂停、时间戳、Scrubbing进度滑块) -->
+      <div class="px-6 py-1 flex items-center gap-3 bg-neutral-900/50 mx-5 rounded-xl border border-neutral-800">
+        <button id="btn-play-pause" onclick="toggleVideoPlay()" class="w-7 h-7 rounded-full bg-cyan-400 text-neutral-950 font-bold flex items-center justify-center text-xs active:scale-95 transition-transform">
+          ⏸
+        </button>
+        <span id="video-current-time" class="text-[11px] font-mono text-white">00:04</span>
+        <input id="video-progress" type="range" min="0" max="15" step="0.1" value="4.2" class="flex-1 accent-cyan-400" oninput="onVideoSeek(this)">
+        <span class="text-[11px] font-mono text-neutral-400">00:15</span>
+        <span class="text-[10px] text-neutral-400">🔁</span>
+      </div>
+
+      <!-- AI 视频运镜与色彩诊断卡片 -->
+      <div class="mx-5 my-1.5 p-2.5 bg-neutral-900/80 rounded-xl border border-cyan-500/20 text-xs">
+        <div class="flex items-center justify-between text-cyan-400 font-bold mb-1">
+          <span class="flex items-center gap-1.5">🎬 AI 电影调色大师诊断</span>
+          <span class="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded">连贯度 92%</span>
+        </div>
+        <p class="text-[11px] text-neutral-300 leading-relaxed">
+          视频平移运镜稳定，全局光比平滑；AI已自动提升暗部发丝反差，注入青蓝阴影与暖橙肤色，锁住电影质感。
+        </p>
+      </div>
+
+      <!-- 视频 10 项专业参数滑块工作台 -->
+      <div class="px-5 pb-4 z-20">
+        <!-- 分类切换 -->
+        <div class="grid grid-cols-3 gap-1 bg-neutral-900 p-1 rounded-lg text-center text-xs mb-2">
+          <button id="vtab-light" onclick="switchVideoSliderTab('light')" class="py-1 rounded bg-cyan-400 text-neutral-950 font-bold text-[11px]">基础光影</button>
+          <button id="vtab-color" onclick="switchVideoSliderTab('color')" class="py-1 rounded text-neutral-400 hover:text-white text-[11px]">色彩科学</button>
+          <button id="vtab-style" onclick="switchVideoSliderTab('style')" class="py-1 rounded text-neutral-400 hover:text-white text-[11px]">胶片质感</button>
+        </div>
+
+        <!-- 基础光影面板 -->
+        <div id="vpanel-light" class="space-y-1.5 text-xs bg-neutral-900/60 p-2.5 rounded-xl border border-neutral-800">
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">曝光补偿</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.10" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-exp')">
+            <span id="vval-exp" class="w-10 text-right font-mono text-cyan-400">+0.10</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">动态对比</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.18" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-con')">
+            <span id="vval-con" class="w-10 text-right font-mono text-cyan-400">+0.18</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">高光压制</span>
+            <input type="range" min="-1" max="1" step="0.05" value="-0.20" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-hl')">
+            <span id="vval-hl" class="w-10 text-right font-mono text-cyan-400">-0.20</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">暗部细节</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.15" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-sh')">
+            <span id="vval-sh" class="w-10 text-right font-mono text-cyan-400">+0.15</span>
+          </div>
+        </div>
+
+        <!-- 色彩科学面板 -->
+        <div id="vpanel-color" class="space-y-1.5 text-xs bg-neutral-900/60 p-2.5 rounded-xl border border-neutral-800 hidden">
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">色彩色温</span>
+            <input type="range" min="-30" max="30" step="1" value="-8" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-temp')">
+            <span id="vval-temp" class="w-10 text-right font-mono text-cyan-400">-8.0</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">色调平衡</span>
+            <input type="range" min="-20" max="20" step="1" value="2" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-tint')">
+            <span id="vval-tint" class="w-10 text-right font-mono text-cyan-400">+2.0</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">自然饱和</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.16" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-vib')">
+            <span id="vval-vib" class="w-10 text-right font-mono text-cyan-400">+0.16</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">纯饱和度</span>
+            <input type="range" min="-1" max="1" step="0.05" value="0.05" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-sat')">
+            <span id="vval-sat" class="w-10 text-right font-mono text-cyan-400">+0.05</span>
+          </div>
+        </div>
+
+        <!-- 胶片质感面板 -->
+        <div id="vpanel-style" class="space-y-1.5 text-xs bg-neutral-900/60 p-2.5 rounded-xl border border-neutral-800 hidden">
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">电影暗角</span>
+            <input type="range" min="-1" max="0" step="0.02" value="-0.12" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-vig')">
+            <span id="vval-vig" class="w-10 text-right font-mono text-cyan-400">-0.12</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="w-16 text-neutral-400">胶片颗粒</span>
+            <input type="range" min="0" max="0.5" step="0.01" value="0.04" class="flex-1 mx-2 accent-cyan-400" oninput="updateVideoSlider(this, 'vval-grain')">
+            <span id="vval-grain" class="w-10 text-right font-mono text-cyan-400">+0.04</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 导出进度模态遮罩 -->
+      <div id="video-export-modal" class="hidden absolute inset-0 bg-black/85 z-50 flex flex-col items-center justify-center p-6">
+        <div class="w-12 h-12 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mb-4"></div>
+        <h4 class="text-sm font-bold text-white mb-1">正在进行 Metal 硬件加速视频渲染...</h4>
+        <div class="w-48 bg-neutral-800 rounded-full h-2 overflow-hidden my-2">
+          <div id="export-bar" class="bg-cyan-400 h-full w-0 transition-all duration-200"></div>
+        </div>
+        <p id="export-text" class="text-xs font-mono text-cyan-300">0%</p>
+      </div>
+
+    </div>
+
+    <!-- 底部 Home Indicator 触控横条 -->
+    <div class="h-5 flex items-center justify-center bg-black">
+      <div class="w-32 h-1 bg-neutral-600 rounded-full"></div>
+    </div>
+  </div>
+
+  <footer class="mt-8 text-neutral-500 text-xs text-center space-y-1">
+    <p>AestheticLens-AI · SwiftUI 原生布局与 Metal 零拷贝片元着色管线</p>
+    <p>支持 60Hz 动态微光准星水平仪 · 4向机位导航 · 照片与视频 10 项专业无损调色工作台</p>
+  </footer>
+
+  <!-- 原型交互逻辑控制脚本 -->
+  <script>
+    function switchView(viewName) {
+      const views = {
+        camera: document.getElementById('view-camera'),
+        retouch: document.getElementById('view-retouch'),
+        video: document.getElementById('view-video')
+      };
+      const tabs = {
+        camera: document.getElementById('tab-camera'),
+        retouch: document.getElementById('tab-retouch'),
+        video: document.getElementById('tab-video')
+      };
+
+      Object.keys(views).forEach(key => {
+        if (key === viewName) {
+          views[key].classList.remove('hidden');
+          tabs[key].className = 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-400 text-neutral-950 shadow';
+        } else {
+          views[key].classList.add('hidden');
+          tabs[key].className = 'px-4 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all';
+        }
+      });
+    }
+
+    function triggerShutter() {
+      const cam = document.getElementById('view-camera');
+      const flash = document.createElement('div');
+      flash.className = 'absolute inset-0 bg-white z-50 transition-opacity duration-300';
+      cam.appendChild(flash);
+      setTimeout(() => {
+        flash.style.opacity = '0';
+        setTimeout(() => {
+          cam.removeChild(flash);
+          switchView('retouch');
+        }, 300);
+      }, 50);
+    }
+
+    function switchSliderTab(tab) {
+      ['light', 'color', 'style'].forEach(t => {
+        const btn = document.getElementById(`subtab-${t}`);
+        const pnl = document.getElementById(`panel-${t}`);
+        if (t === tab) {
+          btn.className = 'py-1 rounded bg-amber-400 text-neutral-950 font-bold text-[11px]';
+          pnl.classList.remove('hidden');
+        } else {
+          btn.className = 'py-1 rounded text-neutral-400 hover:text-white text-[11px]';
+          pnl.classList.add('hidden');
+        }
+      });
+    }
+
+    function switchVideoSliderTab(tab) {
+      ['light', 'color', 'style'].forEach(t => {
+        const btn = document.getElementById(`vtab-${t}`);
+        const pnl = document.getElementById(`vpanel-${t}`);
+        if (t === tab) {
+          btn.className = 'py-1 rounded bg-cyan-400 text-neutral-950 font-bold text-[11px]';
+          pnl.classList.remove('hidden');
+        } else {
+          btn.className = 'py-1 rounded text-neutral-400 hover:text-white text-[11px]';
+          pnl.classList.add('hidden');
+        }
+      });
+    }
+
+    function updateSliderVal(slider, valId) {
+      const v = parseFloat(slider.value);
+      document.getElementById(valId).innerText = (v >= 0 ? '+' : '') + v.toFixed(2);
+    }
+
+    function updateVideoSlider(slider, valId) {
+      const v = parseFloat(slider.value);
+      document.getElementById(valId).innerText = (v >= 0 ? '+' : '') + v.toFixed(2);
+      // 联动模拟视频画面的色调与明暗
+      const canvas = document.getElementById('video-canvas');
+      const exp = parseFloat(document.getElementById('vval-exp')?.innerText || '0');
+      const temp = parseFloat(document.getElementById('vval-temp')?.innerText || '0');
+      canvas.style.filter = `brightness(${1 + exp * 0.4}) hue-rotate(${temp * 1.2}deg)`;
+    }
+
+    // 视频播放与进度控制
+    let isVideoPlaying = true;
+    function toggleVideoPlay() {
+      const btn = document.getElementById('btn-play-pause');
+      const dot = document.getElementById('video-dot');
+      isVideoPlaying = !isVideoPlaying;
+      if (isVideoPlaying) {
+        btn.innerText = '⏸';
+        dot.classList.add('animate-pulse');
+      } else {
+        btn.innerText = '▶';
+        dot.classList.remove('animate-pulse');
+      }
+    }
+
+    function onVideoSeek(slider) {
+      const sec = parseFloat(slider.value);
+      const min = Math.floor(sec / 60);
+      const remSec = Math.floor(sec % 60);
+      document.getElementById('video-current-time').innerText = 
+        `${String(min).padStart(2, '0')}:${String(remSec).padStart(2, '0')}`;
+    }
+
+    // 视频原片长按对比
+    const btnVideoCompare = document.getElementById('btn-video-compare');
+    const videoCanvas = document.getElementById('video-canvas');
+    const videoCompareTag = document.getElementById('video-compare-tag');
+
+    function startVideoCompare() {
+      videoCanvas.classList.remove('from-cyan-600', 'via-amber-600', 'to-neutral-900');
+      videoCanvas.classList.add('from-neutral-700', 'via-neutral-800', 'to-neutral-900', 'grayscale-[50%]');
+      videoCompareTag.classList.remove('hidden');
+    }
+
+    function endVideoCompare() {
+      videoCanvas.classList.remove('from-neutral-700', 'via-neutral-800', 'to-neutral-900', 'grayscale-[50%]');
+      videoCanvas.classList.add('from-cyan-600', 'via-amber-600', 'to-neutral-900');
+      videoCompareTag.classList.add('hidden');
+    }
+
+    btnVideoCompare.addEventListener('mousedown', startVideoCompare);
+    btnVideoCompare.addEventListener('mouseup', endVideoCompare);
+    btnVideoCompare.addEventListener('mouseleave', endVideoCompare);
+    btnVideoCompare.addEventListener('touchstart', startVideoCompare);
+    btnVideoCompare.addEventListener('touchend', endVideoCompare);
+
+    // 视频导出动效
+    function triggerExportVideo() {
+      const modal = document.getElementById('video-export-modal');
+      const bar = document.getElementById('export-bar');
+      const text = document.getElementById('export-text');
+      modal.classList.remove('hidden');
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 20;
+        bar.style.width = `${progress}%`;
+        text.innerText = `${progress}% (HEVC 硬件加速压制中...)`;
+        if (progress >= 100) {
+          clearInterval(interval);
+          setTimeout(() => {
+            modal.classList.add('hidden');
+            alert('🎉 恭喜！成品视频已成功导出并保存至您的系统相册！');
+          }, 300);
+        }
+      }, 150);
+    }
+
+    // 照片调色长按对比
+    const btnCompare = document.getElementById('btn-compare');
+    const previewImg = document.getElementById('preview-image');
+    const compareTag = document.getElementById('compare-tag');
+
+    function startCompare() {
+      previewImg.classList.remove('from-amber-600', 'via-rose-500', 'to-indigo-900');
+      previewImg.classList.add('from-neutral-700', 'via-neutral-800', 'to-neutral-900', 'brightness-75', 'contrast-90');
+      compareTag.classList.remove('hidden');
+    }
+
+    function endCompare() {
+      previewImg.classList.remove('from-neutral-700', 'via-neutral-800', 'to-neutral-900', 'brightness-75', 'contrast-90');
+      previewImg.classList.add('from-amber-600', 'via-rose-500', 'to-indigo-900');
+      compareTag.classList.add('hidden');
+    }
+
+    btnCompare.addEventListener('mousedown', startCompare);
+    btnCompare.addEventListener('mouseup', endCompare);
+    btnCompare.addEventListener('mouseleave', endCompare);
+    btnCompare.addEventListener('touchstart', startCompare);
+    btnCompare.addEventListener('touchend', endCompare);
+  </script>
+</body>
+</html>
+

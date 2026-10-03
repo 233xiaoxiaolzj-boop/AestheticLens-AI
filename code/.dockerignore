@@ -1,0 +1,20 @@
+# 忽略 iOS 手机端代码 (手机端由 Xcode 本地编译打包)
+client/
+
+# 忽略 Python 缓存与临时文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 忽略大模型评测集高清图像缓存 (云端生产环境无需冗余内置)
+poc/dataset/images/
+
+# 忽略本地配置与 Git 仓库
+.git/
+.gitignore
+.env
+.DS_Store

@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_02",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "portrait_sunset",
+      "scene_label_zh": "逆光夕阳人像",
+      "confidence": 0.95,
+      "detected_issues": [
+        "face_underexposed",
+        "high_contrast_blown"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "向左横移一步借侧逆光",
+      "action_type": "step_left_side_light",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.1,
+        "xmin": 0.1,
+        "ymax": 0.9,
+        "xmax": 0.9
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": -0.4,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_warm_film_03",
+      "preset_name_zh": "落日余晖胶片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.25,
+        "temperature": 12.0,
+        "contrast": -0.05
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "强烈夕阳导致面部暗沉缺乏眼神光，大幅提亮暗部还原肤质通透感。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "落日余晖胶片"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_warm_film_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.25,
+        "contrast": -0.05,
+        "highlights": -0.3,
+        "shadows": 0.4,
+        "temperature": 12.0,
+        "tint": 2.0,
+        "vibrance": 0.25,
+        "saturation": 0.0,
+        "vignette": -0.1,
+        "grain": 0.08
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_02",
+    "title": "逆光夕阳人像 - 面部背光死黑",
+    "file_size_kb": 35.62,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_20",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "backlight_silhouette",
+      "scene_label_zh": "黄昏逆光剪影",
+      "confidence": 0.95,
+      "detected_issues": [
+        "sunset_washed_out",
+        "blown_sky"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "降低曝光找回绚丽晚霞细节",
+      "action_type": "underexpose_sunset_rich_color",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.1,
+        "xmin": 0.1,
+        "ymax": 0.9,
+        "xmax": 0.9
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_warm_film_03",
+      "preset_name_zh": "落日余晖胶片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": -0.28,
+        "temperature": 25.0,
+        "contrast": 0.28
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "测光偏高导致天空死白失去色彩梯度，大幅压低曝光锁定剪影，唤醒浓烈暖橙紫调。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "落日余晖胶片"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_warm_film_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": -0.28,
+        "contrast": 0.28,
+        "highlights": -0.45,
+        "shadows": -0.1,
+        "temperature": 25.0,
+        "tint": 12.0,
+        "vibrance": 0.45,
+        "saturation": 0.2,
+        "vignette": -0.2,
+        "grain": 0.04
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_20",
+    "title": "黄昏逆光剪影 - 天空晚霞被强光洗白过曝",
+    "file_size_kb": 21.98,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

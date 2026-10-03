@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>ai.aestheticlens.app</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>灵瞳智拍</string>
+    <key>CFBundlePackageType</key>
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    <key>CFBundleShortVersionString</key>
+    <string>2.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>20261005</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    
+    <!-- 隐私合规权限说明 (严格对齐 PRD 第 8.5 节与 App Store 审核准则) -->
+    <key>NSCameraUsageDescription</key>
+    <string>灵瞳智拍需要访问您的摄像头以提供实时取景、AI 构图指导与胶片滤镜渲染。</string>
+    
+    <key>NSMotionUsageDescription</key>
+    <string>灵瞳智拍需要访问运动传感器以实时解算拍摄角度与水平校正指示器。</string>
+    
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>灵瞳智拍需要访问相册以支持在 AI 调色工作台中导入并编辑历史照片。</string>
+    
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>灵瞳智拍需要保存经过 AI 构图与滤镜处理后的精美成片至系统相册。</string>
+    
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>armv7</string>
+        <string>metal</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+</dict>
+</plist>

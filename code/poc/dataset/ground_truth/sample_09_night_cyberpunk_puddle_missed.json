@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_09",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "night_cyberpunk",
+      "scene_label_zh": "赛博霓虹夜景",
+      "confidence": 0.95,
+      "detected_issues": [
+        "high_angle_missed_reflection",
+        "flat_ground"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "贴地超低机位捕捉水滩倒影",
+      "action_type": "ground_level_reflection",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.2,
+        "xmin": 0.08,
+        "ymax": 0.95,
+        "xmax": 0.92
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": -30.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_cyber_teal_orange_03",
+      "preset_name_zh": "赛博青橙夜色",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.05,
+        "temperature": -12.0,
+        "contrast": 0.25
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "普通站姿视线平淡，将相机贴近湿漉地面能产生上下对称的梦幻流光倒影。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "赛博青橙夜色"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_cyber_teal_orange_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.05,
+        "contrast": 0.25,
+        "highlights": -0.25,
+        "shadows": 0.15,
+        "temperature": -12.0,
+        "tint": -8.0,
+        "vibrance": 0.32,
+        "saturation": 0.18,
+        "vignette": -0.25,
+        "grain": 0.15
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_09",
+    "title": "赛博霓虹夜景 - 站姿过高错过雨后水洼倒影",
+    "file_size_kb": 25.4,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_15",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "street_candid",
+      "scene_label_zh": "街拍纪实抓拍",
+      "confidence": 0.95,
+      "detected_issues": [
+        "subject_cluttered",
+        "lack_of_isolation"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "前进两步接近主体虚化背景",
+      "action_type": "closer_isolate_subject",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.15,
+        "xmin": 0.2,
+        "ymax": 0.9,
+        "xmax": 0.85
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 2,
+        "horizontal_translation_m": 0.1,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_warm_film_03",
+      "preset_name_zh": "落日余晖胶片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.1,
+        "temperature": 8.0,
+        "contrast": 0.18
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "街头人群多且背景杂芜导致主角不明显，逼近目标人物特写，压暗周边突出纪实感。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "落日余晖胶片"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_warm_film_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.1,
+        "contrast": 0.18,
+        "highlights": -0.15,
+        "shadows": 0.12,
+        "temperature": 8.0,
+        "tint": 2.0,
+        "vibrance": 0.15,
+        "saturation": 0.05,
+        "vignette": -0.18,
+        "grain": 0.14
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_15",
+    "title": "街拍纪实抓拍 - 主体行人淹没在杂乱人潮中",
+    "file_size_kb": 21.42,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

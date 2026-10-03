@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_10",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "night_cyberpunk",
+      "scene_label_zh": "赛博霓虹夜景",
+      "confidence": 0.95,
+      "detected_issues": [
+        "messy_dark_noise",
+        "lack_of_focal_point"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "靠近明亮灯箱构图突出主体",
+      "action_type": "approach_lightbox_focus",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.12,
+        "xmin": 0.18,
+        "ymax": 0.88,
+        "xmax": 0.86
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 2,
+        "horizontal_translation_m": 0.3,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_cyber_teal_orange_03",
+      "preset_name_zh": "赛博青橙夜色",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.1,
+        "temperature": -10.0,
+        "contrast": 0.18
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "空旷黑暗区域过大引起噪点喧宾夺主，前移逼近光影主体建立明确视觉锚点。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "赛博青橙夜色"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_cyber_teal_orange_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.1,
+        "contrast": 0.18,
+        "highlights": -0.3,
+        "shadows": 0.05,
+        "temperature": -10.0,
+        "tint": -5.0,
+        "vibrance": 0.2,
+        "saturation": 0.1,
+        "vignette": -0.3,
+        "grain": 0.05
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_10",
+    "title": "赛博霓虹夜景 - 暗部死黑噪点杂乱无视觉中心",
+    "file_size_kb": 15.56,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

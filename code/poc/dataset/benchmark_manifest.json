@@ -1,0 +1,199 @@
+{
+  "version": "1.0.0",
+  "total_samples": 20,
+  "scenes": [
+    "portrait_sunset",
+    "food_flatlay",
+    "night_cyberpunk",
+    "arch_symmetry",
+    "street_candid",
+    "backlight_silhouette"
+  ],
+  "standards": [
+    "ICCV PCCD",
+    "ICML AesFormer",
+    "Lightroom Color Science"
+  ],
+  "samples": [
+    {
+      "sample_id": "sample_01",
+      "scene_type": "portrait_sunset",
+      "title": "逆光夕阳人像 - 头顶留白过大",
+      "image_file": "dataset/images/sample_01_portrait_sunset_headroom.jpg",
+      "gt_file": "dataset/ground_truth/sample_01_portrait_sunset_headroom.json",
+      "defects_count": 2,
+      "file_size_kb": 24.83
+    },
+    {
+      "sample_id": "sample_02",
+      "scene_type": "portrait_sunset",
+      "title": "逆光夕阳人像 - 面部背光死黑",
+      "image_file": "dataset/images/sample_02_portrait_sunset_underexposed.jpg",
+      "gt_file": "dataset/ground_truth/sample_02_portrait_sunset_underexposed.json",
+      "defects_count": 2,
+      "file_size_kb": 35.62
+    },
+    {
+      "sample_id": "sample_03",
+      "scene_type": "portrait_sunset",
+      "title": "逆光夕阳人像 - 地平线穿颈",
+      "image_file": "dataset/images/sample_03_portrait_sunset_horizon_neck.jpg",
+      "gt_file": "dataset/ground_truth/sample_03_portrait_sunset_horizon_neck.json",
+      "defects_count": 2,
+      "file_size_kb": 28.49
+    },
+    {
+      "sample_id": "sample_04",
+      "scene_type": "portrait_sunset",
+      "title": "逆光夕阳人像 - 侧视视线前方无留白",
+      "image_file": "dataset/images/sample_04_portrait_sunset_lookroom_missing.jpg",
+      "gt_file": "dataset/ground_truth/sample_04_portrait_sunset_lookroom_missing.json",
+      "defects_count": 2,
+      "file_size_kb": 28.03
+    },
+    {
+      "sample_id": "sample_05",
+      "scene_type": "food_flatlay",
+      "title": "精致美食俯拍 - 俯拍角度倾斜非90度",
+      "image_file": "dataset/images/sample_05_food_flatlay_tilt_45deg.jpg",
+      "gt_file": "dataset/ground_truth/sample_05_food_flatlay_tilt_45deg.json",
+      "defects_count": 2,
+      "file_size_kb": 20.75
+    },
+    {
+      "sample_id": "sample_06",
+      "scene_type": "food_flatlay",
+      "title": "精致美食俯拍 - 主盘边缘被突兀切断",
+      "image_file": "dataset/images/sample_06_food_flatlay_plate_cropped.jpg",
+      "gt_file": "dataset/ground_truth/sample_06_food_flatlay_plate_cropped.json",
+      "defects_count": 2,
+      "file_size_kb": 23.91
+    },
+    {
+      "sample_id": "sample_07",
+      "scene_type": "food_flatlay",
+      "title": "精致美食俯拍 - 顶光反光刺眼且色温冷暗",
+      "image_file": "dataset/images/sample_07_food_flatlay_cold_glare.jpg",
+      "gt_file": "dataset/ground_truth/sample_07_food_flatlay_cold_glare.json",
+      "defects_count": 2,
+      "file_size_kb": 20.99
+    },
+    {
+      "sample_id": "sample_08",
+      "scene_type": "night_cyberpunk",
+      "title": "赛博霓虹夜景 - 霓虹招牌高光严重过曝",
+      "image_file": "dataset/images/sample_08_night_cyberpunk_neon_blown.jpg",
+      "gt_file": "dataset/ground_truth/sample_08_night_cyberpunk_neon_blown.json",
+      "defects_count": 2,
+      "file_size_kb": 17.17
+    },
+    {
+      "sample_id": "sample_09",
+      "scene_type": "night_cyberpunk",
+      "title": "赛博霓虹夜景 - 站姿过高错过雨后水洼倒影",
+      "image_file": "dataset/images/sample_09_night_cyberpunk_puddle_missed.jpg",
+      "gt_file": "dataset/ground_truth/sample_09_night_cyberpunk_puddle_missed.json",
+      "defects_count": 2,
+      "file_size_kb": 25.4
+    },
+    {
+      "sample_id": "sample_10",
+      "scene_type": "night_cyberpunk",
+      "title": "赛博霓虹夜景 - 暗部死黑噪点杂乱无视觉中心",
+      "image_file": "dataset/images/sample_10_night_cyberpunk_noisy_dark.jpg",
+      "gt_file": "dataset/ground_truth/sample_10_night_cyberpunk_noisy_dark.json",
+      "defects_count": 2,
+      "file_size_kb": 15.56
+    },
+    {
+      "sample_id": "sample_11",
+      "scene_type": "arch_symmetry",
+      "title": "对称建筑空间 - 中轴线左右偏移失衡",
+      "image_file": "dataset/images/sample_11_arch_symmetry_axis_offset.jpg",
+      "gt_file": "dataset/ground_truth/sample_11_arch_symmetry_axis_offset.json",
+      "defects_count": 2,
+      "file_size_kb": 20.38
+    },
+    {
+      "sample_id": "sample_12",
+      "scene_type": "arch_symmetry",
+      "title": "对称建筑空间 - 广角仰拍梯形透视内倾严重",
+      "image_file": "dataset/images/sample_12_arch_symmetry_keystone_tilt.jpg",
+      "gt_file": "dataset/ground_truth/sample_12_arch_symmetry_keystone_tilt.json",
+      "defects_count": 2,
+      "file_size_kb": 18.22
+    },
+    {
+      "sample_id": "sample_13",
+      "scene_type": "arch_symmetry",
+      "title": "对称建筑空间 - 地平线居中导致平淡无主次",
+      "image_file": "dataset/images/sample_13_arch_symmetry_half_empty.jpg",
+      "gt_file": "dataset/ground_truth/sample_13_arch_symmetry_half_empty.json",
+      "defects_count": 2,
+      "file_size_kb": 19.14
+    },
+    {
+      "sample_id": "sample_14",
+      "scene_type": "arch_symmetry",
+      "title": "对称建筑空间 - 边缘闯入无关路人破坏纯粹感",
+      "image_file": "dataset/images/sample_14_arch_symmetry_pedestrian_intrusion.jpg",
+      "gt_file": "dataset/ground_truth/sample_14_arch_symmetry_pedestrian_intrusion.json",
+      "defects_count": 2,
+      "file_size_kb": 22.29
+    },
+    {
+      "sample_id": "sample_15",
+      "scene_type": "street_candid",
+      "title": "街拍纪实抓拍 - 主体行人淹没在杂乱人潮中",
+      "image_file": "dataset/images/sample_15_street_candid_subject_lost.jpg",
+      "gt_file": "dataset/ground_truth/sample_15_street_candid_subject_lost.json",
+      "defects_count": 2,
+      "file_size_kb": 21.42
+    },
+    {
+      "sample_id": "sample_16",
+      "scene_type": "street_candid",
+      "title": "街拍纪实抓拍 - 行人走出画框方向过于局促",
+      "image_file": "dataset/images/sample_16_street_candid_walking_out_of_frame.jpg",
+      "gt_file": "dataset/ground_truth/sample_16_street_candid_walking_out_of_frame.json",
+      "defects_count": 2,
+      "file_size_kb": 20.81
+    },
+    {
+      "sample_id": "sample_17",
+      "scene_type": "street_candid",
+      "title": "街拍纪实抓拍 - 斑马线透视引导线被机位切断",
+      "image_file": "dataset/images/sample_17_street_candid_leading_line_missed.jpg",
+      "gt_file": "dataset/ground_truth/sample_17_street_candid_leading_line_missed.json",
+      "defects_count": 2,
+      "file_size_kb": 30.23
+    },
+    {
+      "sample_id": "sample_18",
+      "scene_type": "backlight_silhouette",
+      "title": "黄昏逆光剪影 - 剪影与复杂树枝杂物黏连",
+      "image_file": "dataset/images/sample_18_silhouette_cluttered_skyline.jpg",
+      "gt_file": "dataset/ground_truth/sample_18_silhouette_cluttered_skyline.json",
+      "defects_count": 2,
+      "file_size_kb": 22.62
+    },
+    {
+      "sample_id": "sample_19",
+      "scene_type": "backlight_silhouette",
+      "title": "黄昏逆光剪影 - 地面死黑面积超过65%",
+      "image_file": "dataset/images/sample_19_silhouette_excessive_black.jpg",
+      "gt_file": "dataset/ground_truth/sample_19_silhouette_excessive_black.json",
+      "defects_count": 2,
+      "file_size_kb": 15.62
+    },
+    {
+      "sample_id": "sample_20",
+      "scene_type": "backlight_silhouette",
+      "title": "黄昏逆光剪影 - 天空晚霞被强光洗白过曝",
+      "image_file": "dataset/images/sample_20_silhouette_washed_sunset.jpg",
+      "gt_file": "dataset/ground_truth/sample_20_silhouette_washed_sunset.json",
+      "defects_count": 2,
+      "file_size_kb": 21.98
+    }
+  ]
+}

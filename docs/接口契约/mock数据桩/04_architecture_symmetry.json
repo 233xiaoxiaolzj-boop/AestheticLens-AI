@@ -1,0 +1,40 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_mock_04_architecture",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "architecture_symmetry",
+      "scene_label_zh": "现代对称建筑",
+      "confidence": 0.96,
+      "detected_issues": ["center_line_deviated", "converging_verticals"]
+    },
+    "composition_guidance": {
+      "coach_tip": "建议向左微调半步，让建筑中轴线居中",
+      "action_type": "center_symmetry",
+      "recommended_grid": "center_cross",
+      "suggested_crop_box": {
+        "ymin": 0.05,
+        "xmin": 0.05,
+        "ymax": 0.95,
+        "xmax": 0.95
+      },
+      "target_pitch_adjustment_deg": 3.0,
+      "navigation_vector": {
+        "forward_steps": 0,
+        "horizontal_translation_m": -0.3,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_arch_bw_04",
+      "preset_name_zh": "极简冷调黑白",
+      "recommended_intensity": 0.80,
+      "color_adjustments": {
+        "exposure": 0.0,
+        "temperature": 0.0,
+        "contrast": 0.25
+      }
+    }
+  }
+}

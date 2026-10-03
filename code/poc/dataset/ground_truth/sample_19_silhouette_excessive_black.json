@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_19",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "backlight_silhouette",
+      "scene_label_zh": "黄昏逆光剪影",
+      "confidence": 0.95,
+      "detected_issues": [
+        "excessive_shadow_dead_zone",
+        "unbalanced_mass"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "微仰机位增加晚霞天空占比",
+      "action_type": "pitch_up_sky_two_thirds",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.25,
+        "xmin": 0.05,
+        "ymax": 0.95,
+        "xmax": 0.95
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": 20.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_warm_film_03",
+      "preset_name_zh": "落日余晖胶片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.05,
+        "temperature": 20.0,
+        "contrast": 0.3
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "大面积无信息的死黑地面压抑沉重，仰头将三分之二画幅交给绚丽晚霞。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "落日余晖胶片"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_warm_film_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.05,
+        "contrast": 0.3,
+        "highlights": -0.3,
+        "shadows": -0.15,
+        "temperature": 20.0,
+        "tint": 8.0,
+        "vibrance": 0.35,
+        "saturation": 0.12,
+        "vignette": -0.25,
+        "grain": 0.06
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_19",
+    "title": "黄昏逆光剪影 - 地面死黑面积超过65%",
+    "file_size_kb": 15.62,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

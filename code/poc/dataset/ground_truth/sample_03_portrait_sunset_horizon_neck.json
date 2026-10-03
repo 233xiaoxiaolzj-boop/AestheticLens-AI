@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_03",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "portrait_sunset",
+      "scene_label_zh": "逆光夕阳人像",
+      "confidence": 0.95,
+      "detected_issues": [
+        "horizon_crossing_neck",
+        "unbalanced_background_line"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "下蹲机位仰拍避开穿颈",
+      "action_type": "squat_avoid_horizon_neck",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.15,
+        "xmin": 0.12,
+        "ymax": 0.9,
+        "xmax": 0.88
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": -25.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_warm_film_03",
+      "preset_name_zh": "落日余晖胶片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.1,
+        "temperature": 10.0,
+        "contrast": 0.08
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "海平面或地平线直接切断颈部在视觉上极度突兀，降低机位让头顶完全进入天空。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "落日余晖胶片"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_warm_film_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.1,
+        "contrast": 0.08,
+        "highlights": -0.15,
+        "shadows": 0.2,
+        "temperature": 10.0,
+        "tint": 3.0,
+        "vibrance": 0.18,
+        "saturation": 0.05,
+        "vignette": -0.12,
+        "grain": 0.05
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_03",
+    "title": "逆光夕阳人像 - 地平线穿颈",
+    "file_size_kb": 28.49,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

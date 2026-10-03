@@ -1,0 +1,40 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_mock_01_sunset",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "portrait_sunset",
+      "scene_label_zh": "逆光夕阳人像",
+      "confidence": 0.95,
+      "detected_issues": ["headroom_too_large", "horizon_tilted"]
+    },
+    "composition_guidance": {
+      "coach_tip": "建议放低机位并前进两步，突出人物特写",
+      "action_type": "low_angle_and_closer",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.15,
+        "xmin": 0.10,
+        "ymax": 0.95,
+        "xmax": 0.90
+      },
+      "target_pitch_adjustment_deg": 5.0,
+      "navigation_vector": {
+        "forward_steps": 2,
+        "horizontal_translation_m": -0.5,
+        "vertical_translation_cm": -15.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_warm_film_03",
+      "preset_name_zh": "落日余晖胶片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.05,
+        "temperature": 12.0,
+        "contrast": 0.10
+      }
+    }
+  }
+}

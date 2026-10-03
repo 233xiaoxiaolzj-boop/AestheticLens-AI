@@ -1,0 +1,40 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_mock_05_street",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "street_candid",
+      "scene_label_zh": "街头纪实抓拍",
+      "confidence": 0.89,
+      "detected_issues": ["background_cluttered", "subject_too_far"]
+    },
+    "composition_guidance": {
+      "coach_tip": "建议向前走两步避开垃圾桶杂物",
+      "action_type": "move_forward_isolate_subject",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.20,
+        "xmin": 0.15,
+        "ymax": 0.85,
+        "xmax": 0.85
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 2,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_classic_film_01",
+      "preset_name_zh": "经典纪实负片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.05,
+        "temperature": -4.0,
+        "contrast": 0.15
+      }
+    }
+  }
+}

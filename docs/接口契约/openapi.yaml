@@ -1,0 +1,543 @@
+openapi: 3.1.0
+info:
+  title: AestheticLens-AI Cloud Gateway API
+  description: 灵瞳智拍端云协同摄影中台 API 规范 (契约冻结版本)
+  version: 2.0.0
+servers:
+  - url: https://aestheticlens-api.zeabur.app/api/v1
+    description: Zeabur PaaS 生产环境网关 (自动免费 HTTPS 泛域名)
+  - url: https://api.aestheticlens.ai/api/v1
+    description: 生产环境主域名 (备用)
+  - url: http://127.0.0.1:8000/api/v1
+    description: 本地开发与 Mock 调试环境
+
+paths:
+  /health:
+    get:
+      summary: 服务健康检查与连通性探测
+      description: 供 PaaS 平台健康探针与客户端连通性自检使用，无需 Bearer JWT 鉴权
+      operationId: healthCheck
+      responses:
+        '200':
+          description: 服务运行正常
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /auth/device-register:
+    post:
+      summary: 设备匿名注册并签发 JWT
+      description: 客户端首次启动或 Token 过期时调用，基于设备唯一指纹匿名换取 JWT Token
+      operationId: registerDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRegisterRequest'
+      responses:
+        '200':
+          description: 注册成功，返回 30 天有效期 JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRegisterResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+
+  /vision/analyze-composition:
+    post:
+      summary: 取景期实时抽帧场景分析与构图导航
+      description: 接收 720px JPEG 抽帧图与 CoreMotion 姿态，返回空间机位引导向量、构图虚线框与推荐 LUT
+      operationId: analyzeComposition
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeCompositionRequest'
+      responses:
+        '200':
+          description: 构图与滤镜诊断决策成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeCompositionResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '413':
+          $ref: '#/components/responses/413PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/429TooManyRequests'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+        '502':
+          $ref: '#/components/responses/502VlmUpstreamError'
+        '503':
+          $ref: '#/components/responses/503ServiceDegraded'
+
+  /retouch/analyze-and-grade:
+    post:
+      summary: 拍后照片 AI 美学诊断与参数推荐
+      description: 接收拍摄好的照片中间帧，多模态 VLM 进行光影与色彩诊断，下发调色配方 Recipe
+      operationId: analyzeAndGrade
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeAndGradeRequest'
+      responses:
+        '200':
+          description: 拍后色彩诊断成功，返回完整参数配方
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeAndGradeResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '413':
+          $ref: '#/components/responses/413PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/429TooManyRequests'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+        '502':
+          $ref: '#/components/responses/502VlmUpstreamError'
+        '503':
+          $ref: '#/components/responses/503ServiceDegraded'
+
+  /retouch/analyze-video:
+    post:
+      summary: 成品视频多关键帧 AI 美学诊断与全局调色配方
+      description: 接收视频多张关键帧与视频元数据，多模态 VLM 进行全片光影与连贯性诊断，下发全局统一视频调色配方 Master Recipe 与推荐 3D LUT
+      operationId: analyzeVideo
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeVideoRequest'
+      responses:
+        '200':
+          description: 视频色彩诊断成功，返回全局调色配方
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeVideoResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '413':
+          $ref: '#/components/responses/413PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/429TooManyRequests'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+        '503':
+          $ref: '#/components/responses/503ServiceDegraded'
+
+  /assets/filters:
+    get:
+      summary: 同步 3D LUT 滤镜清单与资源直链
+      description: 获取当前生效的全部 3D LUT 滤镜配置、缩略图与下载链接
+      operationId: listFilters
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功返回滤镜资产列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterListResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DeviceRegisterRequest:
+      type: object
+      required:
+        - device_id
+        - platform
+        - app_version
+      properties:
+        device_id:
+          type: string
+          description: 基于 identifierForVendor 计算的 SHA256 哈希
+          example: 8f9b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b
+        platform:
+          type: string
+          enum: [ios]
+          example: ios
+        app_version:
+          type: string
+          example: 2.0.0
+
+    DeviceRegisterResponse:
+      type: object
+      required: [code, message, request_id, data]
+      properties:
+        code: { type: integer, example: 200 }
+        message: { type: string, example: success }
+        request_id: { type: string, example: req_reg_9a8b7c }
+        data:
+          type: object
+          required: [token, expires_in, token_type]
+          properties:
+            token: { type: string, example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... }
+            expires_in: { type: integer, example: 2592000 }
+            token_type: { type: string, example: Bearer }
+
+    CropBox:
+      type: object
+      required: [ymin, xmin, ymax, xmax]
+      properties:
+        ymin: { type: number, format: float, minimum: 0.0, maximum: 1.0, example: 0.15 }
+        xmin: { type: number, format: float, minimum: 0.0, maximum: 1.0, example: 0.10 }
+        ymax: { type: number, format: float, minimum: 0.0, maximum: 1.0, example: 0.95 }
+        xmax: { type: number, format: float, minimum: 0.0, maximum: 1.0, example: 0.90 }
+
+    NavigationVector:
+      type: object
+      properties:
+        forward_steps: { type: integer, example: 2 }
+        horizontal_translation_m: { type: number, format: float, example: -0.5 }
+        vertical_translation_cm: { type: number, format: float, example: -15.0 }
+
+    AnalyzeCompositionRequest:
+      type: object
+      required:
+        - client_version
+        - device_info
+        - image_meta
+        - image_base64
+      properties:
+        client_version: { type: string, example: 2.0.0 }
+        device_info:
+          type: object
+          required: [platform, sensor_attitude]
+          properties:
+            platform: { type: string, example: ios }
+            focal_length_mm: { type: number, example: 26.0 }
+            sensor_attitude:
+              type: object
+              required: [pitch, roll]
+              properties:
+                pitch: { type: number, example: -8.5 }
+                roll: { type: number, example: 1.2 }
+        image_meta:
+          type: object
+          required: [width, height, format]
+          properties:
+            width: { type: integer, example: 720 }
+            height: { type: integer, example: 960 }
+            format: { type: string, enum: [jpeg], example: jpeg }
+        image_base64:
+          type: string
+          description: 最大允许 200KB 的 Base64 编码字符串
+          example: /9j/4AAQSkZJRgABAQAAAQABAAD...
+
+    AnalyzeCompositionResponse:
+      type: object
+      required: [code, message, request_id, data]
+      properties:
+        code: { type: integer, example: 200 }
+        message: { type: string, example: success }
+        request_id: { type: string, example: req_8f93e1a0d24c }
+        data:
+          type: object
+          required: [scene_analysis, composition_guidance, filter_recommendation]
+          properties:
+            scene_analysis:
+              type: object
+              properties:
+                scene_type: { type: string, example: portrait_sunset }
+                scene_label_zh: { type: string, example: 逆光夕阳人像 }
+                confidence: { type: number, example: 0.94 }
+                detected_issues:
+                  type: array
+                  items: { type: string }
+                  example: [headroom_too_large, horizon_tilted]
+            composition_guidance:
+              type: object
+              properties:
+                coach_tip: { type: string, maxLength: 20, example: 建议降低机位并前进两步，突出人像 }
+                action_type: { type: string, example: low_angle_and_closer }
+                recommended_grid: { type: string, example: rule_of_thirds }
+                suggested_crop_box: { $ref: '#/components/schemas/CropBox' }
+                target_pitch_adjustment_deg: { type: number, example: 5.0 }
+                navigation_vector: { $ref: '#/components/schemas/NavigationVector' }
+            filter_recommendation:
+              type: object
+              properties:
+                recommended_lut_id: { type: string, example: lut_warm_film_03 }
+                preset_name_zh: { type: string, example: 落日余晖胶片 }
+                recommended_intensity: { type: number, example: 0.85 }
+                color_adjustments:
+                  type: object
+                  properties:
+                    exposure: { type: number, example: 0.05 }
+                    temperature: { type: number, example: 12.0 }
+                    contrast: { type: number, example: 0.1 }
+
+    AnalyzeAndGradeRequest:
+      type: object
+      required:
+        - client_version
+        - photo_id
+        - image_meta
+        - image_base64
+      properties:
+        client_version: { type: string, example: 2.0.0 }
+        photo_id: { type: string, example: photo_20261002_001 }
+        image_meta:
+          type: object
+          required: [width, height, format]
+          properties:
+            width: { type: integer, example: 1920 }
+            height: { type: integer, example: 1440 }
+            format: { type: string, enum: [jpeg], example: jpeg }
+        image_base64: { type: string }
+
+    AnalyzeAndGradeResponse:
+      type: object
+      required: [code, message, request_id, data]
+      properties:
+        code: { type: integer, example: 200 }
+        message: { type: string, example: success }
+        request_id: { type: string, example: retouch_99b2e04f }
+        data:
+          type: object
+          required: [aesthetic_diagnosis, recommended_recipe]
+          properties:
+            aesthetic_diagnosis:
+              type: object
+              properties:
+                overall_critique: { type: string, example: 原片高光区域有轻度过曝，阴影部分色彩饱和偏低，整体层次略平淡。 }
+                target_style: { type: string, example: warm_sunset_film }
+                style_name_zh: { type: string, example: 落日暖调胶片 }
+            recommended_recipe:
+              type: object
+              properties:
+                lut_id: { type: string, example: lut_warm_film_03 }
+                lut_intensity: { type: number, example: 0.85 }
+                parameters:
+                  type: object
+                  properties:
+                    exposure: { type: number, example: 0.15 }
+                    contrast: { type: number, example: 0.12 }
+                    highlights: { type: number, example: -0.25 }
+                    shadows: { type: number, example: 0.10 }
+                    temperature: { type: number, example: 18.0 }
+                    tint: { type: number, example: -3.0 }
+                    vibrance: { type: number, example: 0.14 }
+                    saturation: { type: number, example: 0.08 }
+                    vignette: { type: number, example: 0.15 }
+                    grain: { type: number, example: 0.08 }
+
+    AnalyzeVideoRequest:
+      type: object
+      required:
+        - client_version
+        - video_id
+        - video_meta
+        - keyframes
+      properties:
+        client_version: { type: string, example: 2.0.0 }
+        video_id: { type: string, example: vid_20261003_001 }
+        video_meta:
+          type: object
+          required: [duration_sec, width, height, fps, format]
+          properties:
+            duration_sec: { type: number, example: 15.5 }
+            width: { type: integer, example: 1920 }
+            height: { type: integer, example: 1080 }
+            fps: { type: number, example: 60.0 }
+            format: { type: string, example: mp4 }
+        keyframes:
+          type: array
+          description: 视频关键帧列表（建议提取首帧、中帧、高动态帧共3张，长边720px）
+          items:
+            type: object
+            required: [timestamp_sec, frame_index, image_base64]
+            properties:
+              timestamp_sec: { type: number, example: 0.0 }
+              frame_index: { type: integer, example: 0 }
+              image_base64: { type: string }
+
+    AnalyzeVideoResponse:
+      type: object
+      required: [code, message, request_id, data]
+      properties:
+        code: { type: integer, example: 200 }
+        message: { type: string, example: success }
+        request_id: { type: string, example: vid_retouch_778899 }
+        data:
+          type: object
+          required: [aesthetic_diagnosis, recommended_recipe]
+          properties:
+            aesthetic_diagnosis:
+              type: object
+              properties:
+                overall_critique: { type: string, example: 运镜平滑稳定，主体光比较为均匀，建议强化冷暖对比与电影级暗角。 }
+                target_style: { type: string, example: cinematic_teal_orange }
+                style_name_zh: { type: string, example: 赛博青橙电影感 }
+                camera_movement_critique: { type: string, example: 水平运镜平稳，节奏舒适 }
+            recommended_recipe:
+              type: object
+              properties:
+                lut_id: { type: string, example: lut_cyber_teal_orange_03 }
+                lut_intensity: { type: number, example: 0.80 }
+                parameters:
+                  type: object
+                  properties:
+                    exposure: { type: number, example: 0.10 }
+                    contrast: { type: number, example: 0.18 }
+                    highlights: { type: number, example: -0.20 }
+                    shadows: { type: number, example: 0.15 }
+                    temperature: { type: number, example: -8.0 }
+                    tint: { type: number, example: 2.0 }
+                    vibrance: { type: number, example: 0.16 }
+                    saturation: { type: number, example: 0.05 }
+                    vignette: { type: number, example: -0.12 }
+                    grain: { type: number, example: 0.04 }
+
+    FilterListResponse:
+      type: object
+      required: [code, message, request_id, data]
+      properties:
+        code: { type: integer, example: 200 }
+        message: { type: string, example: success }
+        request_id: { type: string, example: req_filters_01 }
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              lut_id: { type: string }
+              name_zh: { type: string }
+              category: { type: string }
+              lut_url: { type: string }
+              thumbnail_url: { type: string }
+              md5: { type: string }
+
+    ErrorEnvelope:
+      type: object
+      required: [code, message, request_id, data]
+      properties:
+        code: { type: integer }
+        message: { type: string }
+        request_id: { type: string }
+        data:
+          type: ["object", "null"]
+
+  responses:
+    400BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            code: 40001
+            message: "请求参数缺失或 Base64 格式无效"
+            request_id: req_err_400
+            data: null
+
+    401Unauthorized:
+      description: 鉴权失败或 Token 过期
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            code: 40101
+            message: "缺少或非法的 Bearer JWT Token"
+            request_id: req_err_401
+            data: null
+
+    413PayloadTooLarge:
+      description: 载荷超过 200KB 上限
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            code: 41301
+            message: "上传载荷超过安全阈值 (Payload Too Large)"
+            request_id: req_err_413
+            data: null
+
+    429TooManyRequests:
+      description: 滑动窗口限流或日配额耗尽
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: 需等待的冷却秒数
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            code: 42901
+            message: "今日 AI 额度已达上限 (300次/天)"
+            request_id: req_err_429
+            data: null
+
+    500InternalError:
+      description: 服务端内部异常
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            code: 50001
+            message: "云端服务内部处理异常"
+            request_id: req_err_500
+            data: null
+
+    502VlmUpstreamError:
+      description: 上游 VLM 推理超时或宕机
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            code: 50201
+            message: "多模态大模型服务响应超时"
+            request_id: req_err_502
+            data: null
+
+    503ServiceDegraded:
+      description: 系统降级中
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            code: 50301
+            message: "服务负载过高，已启动降级保护"
+            request_id: req_err_503
+            data: null

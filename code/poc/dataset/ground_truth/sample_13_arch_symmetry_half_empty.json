@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_13",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "arch_symmetry",
+      "scene_label_zh": "对称建筑空间",
+      "confidence": 0.95,
+      "detected_issues": [
+        "horizon_dead_center",
+        "lack_of_visual_weight"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "微仰机位纳入宏伟穹顶结构",
+      "action_type": "pitch_up_capture_dome",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.15,
+        "xmin": 0.08,
+        "ymax": 0.93,
+        "xmax": 0.92
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": 15.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_mono_contrast_04",
+      "preset_name_zh": "经典黑白光影",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.08,
+        "temperature": -4.0,
+        "contrast": 0.22
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "五五开构图削弱了空间张力，通过向上仰视展示天花板穹顶的雕花与纵深线条。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "经典黑白光影"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_mono_contrast_04",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.08,
+        "contrast": 0.22,
+        "highlights": -0.18,
+        "shadows": 0.15,
+        "temperature": -4.0,
+        "tint": 1.0,
+        "vibrance": 0.1,
+        "saturation": -0.1,
+        "vignette": -0.12,
+        "grain": 0.06
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_13",
+    "title": "对称建筑空间 - 地平线居中导致平淡无主次",
+    "file_size_kb": 19.14,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

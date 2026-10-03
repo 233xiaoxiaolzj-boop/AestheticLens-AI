@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_06",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "food_flatlay",
+      "scene_label_zh": "精致美食俯拍",
+      "confidence": 0.95,
+      "detected_issues": [
+        "plate_edge_truncated",
+        "tight_framing"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "后退半步容纳完整盘口",
+      "action_type": "step_back_full_plate",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.05,
+        "xmin": 0.05,
+        "ymax": 0.95,
+        "xmax": 0.95
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": 10.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_clean_bright_02",
+      "preset_name_zh": "纯净通透物产",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.15,
+        "temperature": 8.0,
+        "contrast": 0.15
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "主餐盘圆弧被画面左侧直接卡断破坏完整性，后退拉开取景空间保证圆润留白。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "纯净通透物产"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_clean_bright_02",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.15,
+        "contrast": 0.15,
+        "highlights": -0.12,
+        "shadows": 0.1,
+        "temperature": 8.0,
+        "tint": 4.0,
+        "vibrance": 0.25,
+        "saturation": 0.12,
+        "vignette": -0.08,
+        "grain": 0.0
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_06",
+    "title": "精致美食俯拍 - 主盘边缘被突兀切断",
+    "file_size_kb": 23.91,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

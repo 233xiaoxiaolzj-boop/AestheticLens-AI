@@ -1,0 +1,21 @@
+services:
+  aestheticlens-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aestheticlens-cloud:v2.0.0
+    container_name: aestheticlens-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-aestheticlens_dev_secret_key_2026}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\")'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

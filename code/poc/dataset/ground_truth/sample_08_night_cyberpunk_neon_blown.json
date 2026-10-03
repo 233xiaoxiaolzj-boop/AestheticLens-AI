@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_08",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "night_cyberpunk",
+      "scene_label_zh": "赛博霓虹夜景",
+      "confidence": 0.95,
+      "detected_issues": [
+        "neon_highlight_blown",
+        "blown_specular"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "后退一步压暗曝光保招牌",
+      "action_type": "step_back_underexpose_neon",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.18,
+        "xmin": 0.12,
+        "ymax": 0.9,
+        "xmax": 0.88
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_cyber_teal_orange_03",
+      "preset_name_zh": "赛博青橙夜色",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": -0.2,
+        "temperature": -15.0,
+        "contrast": 0.22
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "繁华街头霓虹字体溢出死白失去笔画细节，压制高光强化青橙对撞色彩张力。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "赛博青橙夜色"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_cyber_teal_orange_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": -0.2,
+        "contrast": 0.22,
+        "highlights": -0.4,
+        "shadows": 0.18,
+        "temperature": -15.0,
+        "tint": -10.0,
+        "vibrance": 0.28,
+        "saturation": 0.15,
+        "vignette": -0.2,
+        "grain": 0.12
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_08",
+    "title": "赛博霓虹夜景 - 霓虹招牌高光严重过曝",
+    "file_size_kb": 17.17,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

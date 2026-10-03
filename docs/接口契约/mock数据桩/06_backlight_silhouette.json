@@ -1,0 +1,40 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_mock_06_silhouette",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "backlight_silhouette",
+      "scene_label_zh": "黄昏逆光剪影",
+      "confidence": 0.94,
+      "detected_issues": ["facial_detail_underexposed", "sky_gradient_strong"]
+    },
+    "composition_guidance": {
+      "coach_tip": "建议下蹲仰拍强化人物轮廓剪影",
+      "action_type": "low_angle_silhouette",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.10,
+        "xmin": 0.25,
+        "ymax": 0.90,
+        "xmax": 0.75
+      },
+      "target_pitch_adjustment_deg": 8.0,
+      "navigation_vector": {
+        "forward_steps": 0,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": -25.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_sunset_gold_05",
+      "preset_name_zh": "暮色鎏金剪影",
+      "recommended_intensity": 0.90,
+      "color_adjustments": {
+        "exposure": -0.20,
+        "temperature": 22.0,
+        "contrast": 0.30
+      }
+    }
+  }
+}

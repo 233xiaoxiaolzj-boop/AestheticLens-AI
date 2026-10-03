@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_16",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "street_candid",
+      "scene_label_zh": "街拍纪实抓拍",
+      "confidence": 0.95,
+      "detected_issues": [
+        "walking_into_edge",
+        "imbalanced_motion_space"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "向左移机预留行人迈步空间",
+      "action_type": "shift_left_space_for_walking",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.1,
+        "xmin": 0.15,
+        "ymax": 0.9,
+        "xmax": 0.9
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": -0.5,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_warm_film_03",
+      "preset_name_zh": "落日余晖胶片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.08,
+        "temperature": 6.0,
+        "contrast": 0.15
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "抓拍动态人物必须向其行进方向预留视觉空间，否则画面充满阻滞感与压抑感。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "落日余晖胶片"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_warm_film_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.08,
+        "contrast": 0.15,
+        "highlights": -0.1,
+        "shadows": 0.1,
+        "temperature": 6.0,
+        "tint": 0.0,
+        "vibrance": 0.12,
+        "saturation": 0.02,
+        "vignette": -0.1,
+        "grain": 0.1
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_16",
+    "title": "街拍纪实抓拍 - 行人走出画框方向过于局促",
+    "file_size_kb": 20.81,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

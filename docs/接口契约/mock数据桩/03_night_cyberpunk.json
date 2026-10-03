@@ -1,0 +1,40 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_mock_03_night",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "night_street",
+      "scene_label_zh": "赛博霓虹夜景",
+      "confidence": 0.91,
+      "detected_issues": ["highlights_blown_out", "horizon_level_good"]
+    },
+    "composition_guidance": {
+      "coach_tip": "建议向右平移半米，借助霓虹灯做前景透视",
+      "action_type": "move_right_for_leading_lines",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.10,
+        "xmin": 0.20,
+        "ymax": 0.90,
+        "xmax": 0.95
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 0,
+        "horizontal_translation_m": 0.5,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_cyber_night_01",
+      "preset_name_zh": "赛博冷色夜景",
+      "recommended_intensity": 0.90,
+      "color_adjustments": {
+        "exposure": -0.10,
+        "temperature": -15.0,
+        "contrast": 0.20
+      }
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_14",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "arch_symmetry",
+      "scene_label_zh": "对称建筑空间",
+      "confidence": 0.95,
+      "detected_issues": [
+        "background_clutter",
+        "pedestrian_intrusion"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "前进一步裁切避开右侧路人",
+      "action_type": "step_forward_crop_pedestrian",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.08,
+        "xmin": 0.05,
+        "ymax": 0.92,
+        "xmax": 0.83
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": -0.2,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_mono_contrast_04",
+      "preset_name_zh": "经典黑白光影",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.02,
+        "temperature": 0.0,
+        "contrast": 0.24
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "边缘路人破坏了静态对称的纯粹禅意，前移机位微偏裁切还原建筑殿堂的安宁。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "经典黑白光影"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_mono_contrast_04",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.02,
+        "contrast": 0.24,
+        "highlights": -0.12,
+        "shadows": 0.14,
+        "temperature": 0.0,
+        "tint": 0.0,
+        "vibrance": -0.2,
+        "saturation": -0.8,
+        "vignette": -0.15,
+        "grain": 0.1
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_14",
+    "title": "对称建筑空间 - 边缘闯入无关路人破坏纯粹感",
+    "file_size_kb": 22.29,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "code": 50301,
+  "message": "云端多模态推理集群维护降级中，请使用本地基础构图与离线滤镜",
+  "request_id": "req_err_503_degraded",
+  "data": null
+}

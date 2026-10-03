@@ -1,0 +1,40 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_mock_02_food",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "food_flatlay",
+      "scene_label_zh": "精致美食俯拍",
+      "confidence": 0.93,
+      "detected_issues": ["angle_oblique", "cluttered_edge"]
+    },
+    "composition_guidance": {
+      "coach_tip": "建议手机水平垂直向下90度俯拍",
+      "action_type": "top_down_flatlay",
+      "recommended_grid": "golden_ratio",
+      "suggested_crop_box": {
+        "ymin": 0.08,
+        "xmin": 0.08,
+        "ymax": 0.92,
+        "xmax": 0.92
+      },
+      "target_pitch_adjustment_deg": -85.0,
+      "navigation_vector": {
+        "forward_steps": 0,
+        "horizontal_translation_m": 0.1,
+        "vertical_translation_cm": 20.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_japanese_fresh_02",
+      "preset_name_zh": "日系高光美食",
+      "recommended_intensity": 0.75,
+      "color_adjustments": {
+        "exposure": 0.15,
+        "temperature": 6.0,
+        "contrast": 0.05
+      }
+    }
+  }
+}

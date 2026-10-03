@@ -1,0 +1,13 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_auth_mock_001",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXZpY2VfbW9ja18xMjM0NTYiLCJpYXQiOjE3OTE5NDI0MDAsImV4cCI6MTc5NDUzNDQwMH0.mock_signature_for_offline_dev",
+    "expires_in": 2592000,
+    "daily_quota": {
+      "analyze_composition_limit": 300,
+      "analyze_and_grade_limit": 50
+    }
+  }
+}

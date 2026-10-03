@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_07",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "food_flatlay",
+      "scene_label_zh": "精致美食俯拍",
+      "confidence": 0.95,
+      "detected_issues": [
+        "overhead_glare",
+        "cold_color_cast"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "倾斜微调避开餐桌反光点",
+      "action_type": "tilt_avoid_glare",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.15,
+        "xmin": 0.15,
+        "ymax": 0.85,
+        "xmax": 0.85
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": -0.2,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_clean_bright_02",
+      "preset_name_zh": "纯净通透物产",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.18,
+        "temperature": 18.0,
+        "contrast": 0.08
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "冷白日光灯导致汤汁产生白色死高光反光，升温色调配合压高光呈现新鲜多汁质感。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "纯净通透物产"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_clean_bright_02",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.18,
+        "contrast": 0.08,
+        "highlights": -0.25,
+        "shadows": 0.15,
+        "temperature": 18.0,
+        "tint": 8.0,
+        "vibrance": 0.35,
+        "saturation": 0.1,
+        "vignette": -0.05,
+        "grain": 0.0
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_07",
+    "title": "精致美食俯拍 - 顶光反光刺眼且色温冷暗",
+    "file_size_kb": 20.99,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

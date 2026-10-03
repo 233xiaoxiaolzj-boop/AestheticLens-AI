@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_05",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "food_flatlay",
+      "scene_label_zh": "精致美食俯拍",
+      "confidence": 0.95,
+      "detected_issues": [
+        "non_vertical_pitch",
+        "imperfect_flatlay"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "垂直正俯拍对准餐盘中心",
+      "action_type": "vertical_topdown_center",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.1,
+        "xmin": 0.1,
+        "ymax": 0.9,
+        "xmax": 0.9
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": 15.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_clean_bright_02",
+      "preset_name_zh": "纯净通透物产",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.2,
+        "temperature": 12.0,
+        "contrast": 0.1
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "平铺俯拍倾角未达90度导致几何形变，扶正水平仪后餐具阵列极具仪式美感与食欲。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "纯净通透物产"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_clean_bright_02",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.2,
+        "contrast": 0.1,
+        "highlights": -0.1,
+        "shadows": 0.15,
+        "temperature": 12.0,
+        "tint": 6.0,
+        "vibrance": 0.3,
+        "saturation": 0.1,
+        "vignette": -0.05,
+        "grain": 0.0
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_05",
+    "title": "精致美食俯拍 - 俯拍角度倾斜非90度",
+    "file_size_kb": 20.75,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

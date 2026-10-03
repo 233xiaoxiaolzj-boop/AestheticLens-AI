@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_04",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "portrait_sunset",
+      "scene_label_zh": "逆光夕阳人像",
+      "confidence": 0.95,
+      "detected_issues": [
+        "missing_look_room",
+        "subject_edge_cramped"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "向右平移预留视线留白",
+      "action_type": "shift_right_for_lookroom",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.08,
+        "xmin": 0.2,
+        "ymax": 0.9,
+        "xmax": 0.95
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 1,
+        "horizontal_translation_m": 0.5,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_warm_film_03",
+      "preset_name_zh": "落日余晖胶片",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.12,
+        "temperature": 14.0,
+        "contrast": 0.12
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "人物右侧望向画外却贴近边框，产生强烈逼仄感；重构构图后视线前方拥有广阔晚霞空间。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "落日余晖胶片"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_warm_film_03",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.12,
+        "contrast": 0.12,
+        "highlights": -0.18,
+        "shadows": 0.18,
+        "temperature": 14.0,
+        "tint": 5.0,
+        "vibrance": 0.22,
+        "saturation": 0.08,
+        "vignette": -0.15,
+        "grain": 0.06
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_04",
+    "title": "逆光夕阳人像 - 侧视视线前方无留白",
+    "file_size_kb": 28.03,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}

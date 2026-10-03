@@ -1,0 +1,75 @@
+{
+  "code": 200,
+  "message": "success",
+  "request_id": "req_bench_sample_12",
+  "data": {
+    "scene_analysis": {
+      "scene_type": "arch_symmetry",
+      "scene_label_zh": "对称建筑空间",
+      "confidence": 0.95,
+      "detected_issues": [
+        "keystoning_tilt",
+        "converging_verticals"
+      ]
+    },
+    "composition_guidance": {
+      "coach_tip": "平视机位后退两步消除透视",
+      "action_type": "level_step_back_no_keystone",
+      "recommended_grid": "rule_of_thirds",
+      "suggested_crop_box": {
+        "ymin": 0.1,
+        "xmin": 0.1,
+        "ymax": 0.95,
+        "xmax": 0.9
+      },
+      "target_pitch_adjustment_deg": 0.0,
+      "navigation_vector": {
+        "forward_steps": 2,
+        "horizontal_translation_m": 0.0,
+        "vertical_translation_cm": 0.0
+      }
+    },
+    "filter_recommendation": {
+      "recommended_lut_id": "lut_mono_contrast_04",
+      "preset_name_zh": "经典黑白光影",
+      "recommended_intensity": 0.85,
+      "color_adjustments": {
+        "exposure": 0.0,
+        "temperature": 0.0,
+        "contrast": 0.18
+      }
+    }
+  },
+  "retouch_ground_truth": {
+    "aesthetic_diagnosis": {
+      "overall_critique": "近距离仰拍造成立柱向内聚拢倾倒，拉大拍摄距离保持水平仪0度可实现横平竖直。",
+      "target_style": "vintage_warm",
+      "style_name_zh": "经典黑白光影"
+    },
+    "recommended_recipe": {
+      "lut_id": "lut_mono_contrast_04",
+      "lut_intensity": 0.85,
+      "parameters": {
+        "exposure": 0.0,
+        "contrast": 0.18,
+        "highlights": -0.1,
+        "shadows": 0.12,
+        "temperature": 0.0,
+        "tint": 0.0,
+        "vibrance": 0.0,
+        "saturation": -0.5,
+        "vignette": -0.05,
+        "grain": 0.08
+      }
+    }
+  },
+  "meta": {
+    "sample_id": "sample_12",
+    "title": "对称建筑空间 - 广角仰拍梯形透视内倾严重",
+    "file_size_kb": 18.22,
+    "resolution": {
+      "width": 720,
+      "height": 960
+    }
+  }
+}
