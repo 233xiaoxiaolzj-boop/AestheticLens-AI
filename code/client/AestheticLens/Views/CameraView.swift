@@ -37,19 +37,19 @@ public struct CameraView: View {
                 ZStack {
                     // 硬件直通原生预览底座 (100% 保证相机画面秒出)
                     CameraPreviewView()
-                        .edgesIgnoringSafeArea(.all)
+                        .ignoresSafeArea()
                     
                     // Metal 3D LUT 胶片滤镜层 (当开启特色胶片时渲染)
                     if activeLutName != "自然原画" {
                         MetalView(activePreset: activeLutName)
-                            .edgesIgnoringSafeArea(.all)
+                            .ignoresSafeArea()
                     }
                 }
                 .onAppear {
                     cameraManager.startSession()
                 }
             } else {
-                Color.black.edgesIgnoringSafeArea(.all)
+                Color.black.ignoresSafeArea()
                 VStack(spacing: 16) {
                     Image(systemName: "camera.fill")
                         .font(.system(size: 52))
