@@ -1,0 +1,53 @@
+name: Build iOS IPA Package
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    name: Build Native iOS App (.ipa)
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode Environment
+        run: |
+          echo "Listing available Xcode versions:"
+          ls -d /Applications/Xcode* || true
+          xcodebuild -version
+
+      - name: Build iOS Application (.app)
+        run: |
+          cd code/client
+          xcodebuild clean build \
+            -project AestheticLens.xcodeproj \
+            -scheme AestheticLens \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            BUILD_DIR=build
+
+      - name: Package .ipa
+        run: |
+          cd code/client
+          mkdir -p build/Payload
+          cp -R build/Release-iphoneos/AestheticLens.app build/Payload/
+          cd build
+          zip -qr AestheticLens.ipa Payload
+          echo "IPA packaging completed successfully:"
+          ls -lh AestheticLens.ipa
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AestheticLens-iOS-App-ipa
+          path: code/client/build/AestheticLens.ipa
+          retention-days: 14

@@ -13,6 +13,7 @@
 
 ```text
 F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
+├── .github/workflows/             # ⚙️ 【云端 CI/CD 编译打包流水线】利用 GitHub 免费 macOS 虚拟机为无 Mac 开发者自动编译原生 iOS .ipa 安装包
 ├── .gitignore                     # 🛡️ 【Git 版本控制排除规则】过滤 Python 缓存、本地测试产物、敏感密钥及 IDE 临时文件
 ├── code/                          # 💻 【代码保存目录】项目的全套工程代码、评测脚本与客户端
 └── docs/                          # 📁 【文档保存目录】项目的全套设计规范、契约资产与评测报告
