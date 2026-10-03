@@ -1,9 +1,9 @@
 # AestheticLens-AI (灵瞳智拍) —— 项目总说明书
 
-> **项目状态**：`Phase 6 Active (云端生产公网正式上线！https://aestheticlens-api.onrender.com 穿透验证 100% 成功，Qwen-VL-Plus 在线大模型直连就绪，客户端已自动对接，待进行 iPhone 真机直装)`  
+> **项目状态**：`Phase 6 完满达成！(云端生产生产域名上线 + 原生 iOS .ipa 编译打包全绿通过，Windows 数据线 1 分钟直装)`  
 > **服务首选目标**：**Apple iPhone (iOS 原生生态)**  
 > **核心定位**：基于端云协同与 Metal 实时渲染的 AI 智能构图、机位空间导航与拍后智能调色相机  
-> **极简上线方案**：选项 A（Render 永久免费 PaaS + 阿里云 Qwen-VL-Plus + 个人免费 Apple ID 直装 + 演示防翻车双保险，总投入 10 元）
+> **极简上线方案**：选项 A（Render 永久免费 PaaS + 阿里云 Qwen-VL-Plus + Windows 电脑数据线个人免证书直装，总投入 0 元）
 
 ---
 
@@ -84,8 +84,9 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 | │   ├── `test_e2e_integration.py` | 文件 | **【工序 10】端云全链路 E2E 集成联调测试 (6项全部通过)**。端到端验证设备注册、取景姿态抽帧分析、3D LUT 贴图直链下载、拍后快门拍照与 10 维调色滑块、未授权拦截、以及直接跨网络向运行中的本地 Docker 容器发起真实请求验证！ |
 | │   └── **`test_video_retouch.py`** | 文件 | **【REQ-13 专项】成品视频 AI 调色与多关键帧接口测试 (2项全绿)**。验证多关键帧上传、运镜连贯性诊断、全局电影级调色配方输出与限流防护。 |
 | └── **`client/`** | 目录 | **【手机端】iOS 原生 App 源代码根目录**。纯原生 SwiftUI + Metal + CoreMotion 架构，无臃肿第三方依赖。 |
-|     ├── **`AestheticLens.xcodeproj/`** | 目录 | **【Xcode 官方标准工程包】**。包含完整 `project.pbxproj` 配置文件，定义 Target 依赖、Swift 5.9 编译参数、Metal 自动编译管线与资源打包，**Mac 用户直接双击即可一键在 Xcode 中打开并直装真机**！ |
+|     ├── **`AestheticLens.xcodeproj/`** | 目录 | **【Xcode 官方标准工程包】**。包含完整 `project.pbxproj` 与共享 Scheme 配置文件，定义 Target 依赖、Swift 5.9 编译参数、Metal 自动编译管线与资源打包，**Mac 用户直接双击即可一键在 Xcode 中打开并直装真机**！ |
 |     ├── **`Package.swift`** | 文件 | **Swift Package Manager (SPM) 依赖包描述文件**。支持现代 Swift 模块化引入与自动化测试。 |
+|     ├── **`dist/`** | 目录 | **【安装包归档目录】**。存放云端 GitHub Actions macOS-14 虚拟机流水线全自动构建输出的免证书原生安装包 `AestheticLens.ipa`（大小 2.67MB），专供 Windows 用户通过数据线免 Mac 直装。 |
 |     └── **`AestheticLens/`** | 目录 | **iPhone 原生客户端主应用包**。 |
 |         ├── `Info.plist` | 文件 | **权限声明与元数据配置**。声明相机、传感器与相册访问权限文案（严格符合 App Store 4.x 审核准则与 PIPL）。 |
 |         ├── **`App/`** | 目录 | **App 程序生命周期入口**。 |
@@ -208,6 +209,20 @@ docker run -d --name aestheticlens-backend -p 8000:8000 aestheticlens-cloud:v2.0
 启动后在浏览器打开：
 * 健康检查探测：`http://127.0.0.1:8000/health`
 * 可视化交互 API 文档 (Swagger UI)：`http://127.0.0.1:8000/docs`
+
+#### 3. iPhone 原生真机无 Mac 电脑免越狱直装指南 (路线二：Windows 数据线 1 分钟直装)
+
+本项目已通过云端 GitHub Actions 免费 macOS-14 虚拟机流水线完成了原生 iOS 应用的纯净编译，生成了免签名原始安装包 `AestheticLens.ipa`（大小约 2.67 MB）。
+
+* **本地安装包位置**：[`code/client/dist/AestheticLens.ipa`](file:///F:/AI_Workspaces/AestheticLens-AI/code/client/dist/AestheticLens.ipa)
+* **在线构建归档页**：[GitHub Actions 构建记录 #37157843921](https://github.com/233xiaoxiaolzj-boop/AestheticLens-AI/actions/runs/37157843921)
+* **直装操作步骤**：
+  1. **插线连接**：使用 USB 数据线将 iPhone 连接到 Windows 电脑，在手机弹窗中点击“信任此电脑”；
+  2. **选择工具**：打开电脑上的侧载工具（如 **Sideloadly** 或 **爱思助手**）；
+  3. **载入安装包**：将项目目录下的 `code/client/dist/AestheticLens.ipa` 直接拖入工具窗口；
+  4. **免费个人签名**：输入您个人的普通 Apple ID 账号（仅用于苹果设备端侧合规授权，无需 688 元付费开发者账号），点击 **Start / 开始安装**；
+  5. **一键刷入真机**：等待约 15 秒进度条走完，iPhone 桌面上就会立即出现 **【灵瞳智拍】(AestheticLens)** 原生 App 图标；
+  6. **首次信任授权**：在 iPhone 打开【设置】➔【通用】➔【VPN 与设备管理】(或【设备管理】)，点击刚刚签名的 Apple ID 并选择“信任”，即可畅享 60fps Metal 实时滤镜取景与拍后 AI 智能美学调色！
 
 ---
 > 💡 **项目维护铁律**：在后续所有功能的迭代推进中，无论新增任何模块、文件或测试，必须同步在本《项目总说明书》中更新其文件路径与通俗功能解释，确保全工程透明、规范、易懂！
