@@ -213,7 +213,7 @@ README 目录索引漏掉第三份文档；架构篇无版本表头；PRD v1.0.0
 - [x] **TO-10（重定义）VLM POC 与基准测试**（改动/新增文件：`docs/技术架构/摄影大模型评测方案与业界开源借鉴报告.md`、`docs/技术架构/VLM选型与基准评测报告.md`、`code/poc/generate_benchmark_dataset.py`、`code/poc/dataset/`、`code/poc/vlm_bench.py`、`code/poc/benchmarks_report.md`、`code/app/prompt/photography_skill.py`、`code/app/services/vlm_service.py`、`code/tests/test_photography_skill.py`；完成：落地 6 大真实摄影场景 20 组黄金基准数据集与 Ground Truth、吸收 PCCD/AesFormer/Lightroom 沉淀摄影美学专家 Skill 引擎、实现 qwen-vl-plus 与 qwen-vl-max 自动化对比评测；结论：qwen-vl-plus p50=735.5ms, p95=881.1ms 达标，JSON合法率100%，动词引导率95%，1000次演示开销10.06元精准锁死10~15元预算红线，正式锁定生产首选）
 - [x] **TO-14 服务端上线修复包**（改动文件：`code/app/core/config.py`、`code/app/core/security.py`、`code/app/core/middleware.py`、`code/app/core/limiter.py`、`code/app/api/v1/assets.py`、`code/app/api/v1/health.py`、`code/app/api/v1/retouch.py`、`code/app/api/v1/vision.py`、`code/app/api/v1/auth.py`、`code/requirements.txt`；完成：生产环境强制封堵 mock token 鉴权后门、拒绝默认弱密钥自检、以真实 4 套 512x512 贴图与真实 MD5 重构 FILTERS_DB、/health 探针增加 vlm_configured/environment、视频关键帧补充 2.5MB 载荷守卫、剔除 /retouch-recipe 幽灵别名路由、依赖清单瘦身移除非必要 SDK；全套 25 项测试 100% 绿灯通过）
 - [x] **TO-15 iOS 工程化**（新增文件：`code/client/AestheticLens.xcodeproj/project.pbxproj`、`code/client/Package.swift`；特性：创建 Xcode 15+ 官方标准工程包，预置 Target、Metal 编译管线、Swift 5.9 编译参数与 512x512 真实 LUT 资源打包，Mac 用户双击即可一键在 Xcode 打开并直装真机）
-- [ ] **TO-16 上线走查清单**（待 Zeabur 部署当日勾选走查）
+- [x] **TO-16 上线走查清单**（生产公网域名 https://aestheticlens-api.onrender.com 成功上线；/health 探针实测返回 status:ok, vlm_configured:true, environment:production；端到端跑通设备注册、4套真实LUT资产下发与 Qwen-VL-Plus 真实大模型在线构图诊断，X-AI-Source 响应头实测验证通过，客户端 APIClient 已全自动对接完成）
 
 ---
 

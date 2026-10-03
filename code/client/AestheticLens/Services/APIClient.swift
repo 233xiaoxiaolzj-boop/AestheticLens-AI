@@ -9,18 +9,18 @@ public enum DataSourceMode: String, CaseIterable, Identifiable {
 }
 
 public enum ServerEnvironment: String, CaseIterable, Identifiable {
+    case cloudProd = "云端生产公网 (Render HTTPS)"
     case localDocker = "本地 Docker 容器 (127.0.0.1:8000)"
-    case zeaburProd = "Zeabur 生产公网 (zeabur.app)"
-    case custom = "自定义局域网 IP"
+    case custom = "自定义服务器 IP"
     
     public var id: String { rawValue }
     
     public var defaultURL: String {
         switch self {
+        case .cloudProd:
+            return "https://aestheticlens-api.onrender.com"
         case .localDocker:
             return "http://127.0.0.1:8000"
-        case .zeaburProd:
-            return "https://aestheticlens-api.zeabur.app"
         case .custom:
             return "http://192.168.1.100:8000"
         }
@@ -34,7 +34,7 @@ public final class APIClient: ObservableObject {
     // 数据源切换 (由设置页隐藏手势三击唤出)
     @Published public var currentMode: DataSourceMode = .live
     @Published public var isHealthOk: Bool = false
-    @Published public var selectedEnv: ServerEnvironment = .localDocker {
+    @Published public var selectedEnv: ServerEnvironment = .cloudProd {
         didSet {
             baseURL = selectedEnv.defaultURL
             checkHealth()
@@ -43,8 +43,8 @@ public final class APIClient: ObservableObject {
     
     private let kSavedBaseURLKey = "AestheticLens_SavedBaseURL"
     
-    // 当前服务器网关基础地址 (支持本地持久化记忆)
-    @Published public var baseURL: String = ServerEnvironment.localDocker.defaultURL {
+    // 当前服务器网关基础地址 (默认直连云端生产公网，支持本地持久化记忆)
+    @Published public var baseURL: String = ServerEnvironment.cloudProd.defaultURL {
         didSet {
             UserDefaults.standard.set(baseURL, forKey: kSavedBaseURLKey)
         }

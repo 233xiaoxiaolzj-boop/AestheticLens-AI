@@ -1,9 +1,9 @@
 # AestheticLens-AI (灵瞳智拍) —— 项目总说明书
 
-> **项目状态**：`Phase 5 Active (第三轮审计 12 项缺陷全量修复通过，iOS Xcode 原生工程体系就绪，单测 25/25 绿灯，待云端上线)`  
+> **项目状态**：`Phase 6 Active (云端生产公网正式上线！https://aestheticlens-api.onrender.com 穿透验证 100% 成功，Qwen-VL-Plus 在线大模型直连就绪，客户端已自动对接，待进行 iPhone 真机直装)`  
 > **服务首选目标**：**Apple iPhone (iOS 原生生态)**  
 > **核心定位**：基于端云协同与 Metal 实时渲染的 AI 智能构图、机位空间导航与拍后智能调色相机  
-> **极简上线方案**：选项 A（Zeabur 轻量 PaaS 托管 + 阿里云 Qwen-VL + 个人免费 Apple ID 直装 + AltStore 局域网续期 + 演示防翻车双保险，总投入 10~15 元）
+> **极简上线方案**：选项 A（Render 永久免费 PaaS + 阿里云 Qwen-VL-Plus + 个人免费 Apple ID 直装 + 演示防翻车双保险，总投入 10 元）
 
 ---
 
