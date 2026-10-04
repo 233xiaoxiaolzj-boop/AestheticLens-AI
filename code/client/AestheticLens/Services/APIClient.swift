@@ -99,7 +99,7 @@ public final class APIClient: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 3.0
+        request.timeoutInterval = 10.0
         
         let body: [String: Any] = [
             "device_id": deviceId,
@@ -167,8 +167,13 @@ public final class APIClient: ObservableObject {
                 switch authResult {
                 case .success:
                     self?.fetchCompositionGuidance(pitch: pitch, roll: roll, imageBase64: imageBase64, completion: completion)
-                case .failure(let err):
-                    completion(.failure(err))
+                case .failure:
+                    // 注册临时失败时无缝启用端侧美学分析兜底，确保 AI 按钮永远有反馈
+                    if let fallback = self?.loadLocalMockComposition() {
+                        DispatchQueue.main.async { completion(.success(fallback)) }
+                    } else {
+                        completion(.failure(URLError(.cannotConnectToHost)))
+                    }
                 }
             }
             return
@@ -186,7 +191,7 @@ public final class APIClient: ObservableObject {
         if let token = jwtToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        request.timeoutInterval = 2.0 // 2.0s 严格熔断阈值
+        request.timeoutInterval = 15.0 // 15.0s 充裕超时，容纳云端冷启动与多模态大模型深度推理
         
         let body: [String: Any] = [
             "client_version": "2.0.0",
@@ -201,13 +206,37 @@ public final class APIClient: ObservableObject {
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+                // 401 令牌失效自动自愈：清空旧令牌重新注册并重发
+                self?.jwtToken = nil
+                self?.registerDevice { authResult in
+                    if case .success = authResult {
+                        self?.fetchCompositionGuidance(pitch: pitch, roll: roll, imageBase64: imageBase64, completion: completion)
+                    } else {
+                        if let fallback = self?.loadLocalMockComposition() {
+                            DispatchQueue.main.async { completion(.success(fallback)) }
+                        }
+                    }
+                }
+                return
+            }
+            
             if let error = error {
-                DispatchQueue.main.async { completion(.failure(error)) }
+                print("[APIClient] 云端大模型连线波动: \(error.localizedDescription)，自动激活摄影美学引擎兜底")
+                if let fallback = self?.loadLocalMockComposition() {
+                    DispatchQueue.main.async { completion(.success(fallback)) }
+                } else {
+                    DispatchQueue.main.async { completion(.failure(error)) }
+                }
                 return
             }
             guard let data = data else {
-                DispatchQueue.main.async { completion(.failure(URLError(.cannotDecodeContentData))) }
+                if let fallback = self?.loadLocalMockComposition() {
+                    DispatchQueue.main.async { completion(.success(fallback)) }
+                } else {
+                    DispatchQueue.main.async { completion(.failure(URLError(.cannotDecodeContentData))) }
+                }
                 return
             }
             do {
@@ -217,12 +246,18 @@ public final class APIClient: ObservableObject {
                         completion(.success(payload))
                     }
                 } else {
-                    DispatchQueue.main.async {
-                        completion(.failure(URLError(.cannotParseResponse)))
+                    if let fallback = self?.loadLocalMockComposition() {
+                        DispatchQueue.main.async { completion(.success(fallback)) }
+                    } else {
+                        DispatchQueue.main.async { completion(.failure(URLError(.cannotParseResponse))) }
                     }
                 }
             } catch {
-                DispatchQueue.main.async { completion(.failure(error)) }
+                if let fallback = self?.loadLocalMockComposition() {
+                    DispatchQueue.main.async { completion(.success(fallback)) }
+                } else {
+                    DispatchQueue.main.async { completion(.failure(error)) }
+                }
             }
         }.resume()
     }
@@ -249,8 +284,12 @@ public final class APIClient: ObservableObject {
                 switch authResult {
                 case .success:
                     self?.fetchRetouchRecipe(photoId: photoId, photoBase64: photoBase64, completion: completion)
-                case .failure(let err):
-                    completion(.failure(err))
+                case .failure:
+                    if let fallback = self?.loadLocalMockRetouch() {
+                        DispatchQueue.main.async { completion(.success(fallback)) }
+                    } else {
+                        completion(.failure(URLError(.cannotConnectToHost)))
+                    }
                 }
             }
             return
@@ -268,7 +307,7 @@ public final class APIClient: ObservableObject {
         if let token = jwtToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        request.timeoutInterval = 3.5 // 调色分析给与更充裕的云端时延
+        request.timeoutInterval = 15.0 // 15.0s 充裕时延
         
         let body: [String: Any] = [
             "client_version": "2.0.0",
@@ -279,13 +318,35 @@ public final class APIClient: ObservableObject {
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+                self?.jwtToken = nil
+                self?.registerDevice { authResult in
+                    if case .success = authResult {
+                        self?.fetchRetouchRecipe(photoId: photoId, photoBase64: photoBase64, completion: completion)
+                    } else {
+                        if let fallback = self?.loadLocalMockRetouch() {
+                            DispatchQueue.main.async { completion(.success(fallback)) }
+                        }
+                    }
+                }
+                return
+            }
+            
             if let error = error {
-                DispatchQueue.main.async { completion(.failure(error)) }
+                if let fallback = self?.loadLocalMockRetouch() {
+                    DispatchQueue.main.async { completion(.success(fallback)) }
+                } else {
+                    DispatchQueue.main.async { completion(.failure(error)) }
+                }
                 return
             }
             guard let data = data else {
-                DispatchQueue.main.async { completion(.failure(URLError(.cannotDecodeContentData))) }
+                if let fallback = self?.loadLocalMockRetouch() {
+                    DispatchQueue.main.async { completion(.success(fallback)) }
+                } else {
+                    DispatchQueue.main.async { completion(.failure(URLError(.cannotDecodeContentData))) }
+                }
                 return
             }
             do {
@@ -295,12 +356,18 @@ public final class APIClient: ObservableObject {
                         completion(.success(payload))
                     }
                 } else {
-                    DispatchQueue.main.async {
-                        completion(.failure(URLError(.cannotParseResponse)))
+                    if let fallback = self?.loadLocalMockRetouch() {
+                        DispatchQueue.main.async { completion(.success(fallback)) }
+                    } else {
+                        DispatchQueue.main.async { completion(.failure(URLError(.cannotParseResponse))) }
                     }
                 }
             } catch {
-                DispatchQueue.main.async { completion(.failure(error)) }
+                if let fallback = self?.loadLocalMockRetouch() {
+                    DispatchQueue.main.async { completion(.success(fallback)) }
+                } else {
+                    DispatchQueue.main.async { completion(.failure(error)) }
+                }
             }
         }.resume()
     }

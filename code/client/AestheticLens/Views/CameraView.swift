@@ -732,27 +732,31 @@ public struct CameraView: View {
     private func triggerAICompositionAnalysis(silent: Bool) {
         if !silent {
             isAnalyzingAI = true
+            aiCoachMessage = "灵瞳 AI 正在透视场景美学与机位..."
         }
         
-        // 抓取当前真实画幅的一帧用于 AI 分析
-        cameraManager.takePhoto { capturedFrame in
+        var hasDispatched = false
+        let sendAnalysis: (UIImage?) -> Void = { [self] capturedFrame in
+            guard !hasDispatched else { return }
+            hasDispatched = true
+            
             var payloadBase64 = "dGVzdF9iYXNlNjQ="
             if let frame = capturedFrame {
                 let maxSide: CGFloat = 720.0
                 let scale = min(maxSide / max(frame.size.width, frame.size.height), 1.0)
-                let targetSize = CGSize(width: frame.size.width * scale, height: frame.size.height * scale)
+                let targetSize = CGSize(width: max(frame.size.width * scale, 100), height: max(frame.size.height * scale, 100))
                 let renderer = UIGraphicsImageRenderer(size: targetSize)
                 let resized = renderer.image { _ in
                     frame.draw(in: CGRect(origin: .zero, size: targetSize))
                 }
-                if let data = resized.jpegData(compressionQuality: 0.65) {
+                if let data = resized.jpegData(compressionQuality: 0.6) {
                     payloadBase64 = data.base64EncodedString()
                 }
             }
             
-            apiClient.fetchCompositionGuidance(
-                pitch: motionManager.pitchDegrees,
-                roll: motionManager.rollDegrees,
+            self.apiClient.fetchCompositionGuidance(
+                pitch: self.motionManager.pitchDegrees,
+                roll: self.motionManager.rollDegrees,
                 imageBase64: payloadBase64
             ) { result in
                 DispatchQueue.main.async {
@@ -762,7 +766,7 @@ public struct CameraView: View {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             self.currentGuidance = data.compositionGuidance
                             self.currentFilterRec = data.filterRecommendation
-                            self.aiCoachMessage = data.compositionGuidance.coachTip
+                            self.aiCoachMessage = "✨ " + data.compositionGuidance.coachTip
                             if self.activeLutName == "自然原画" {
                                 self.activeLutName = data.filterRecommendation.presetNameZh
                             }
@@ -770,13 +774,21 @@ public struct CameraView: View {
                         let generator = UINotificationFeedbackGenerator()
                         generator.notificationOccurred(.success)
                     case .failure(let error):
-                        print("[CameraView] AI 构图分析触发兜底: \(error)")
+                        print("[CameraView] AI 构图分析响应错误: \(error)")
                         if !silent {
-                            self.aiCoachMessage = "已启用构图参考：建议镜头平推，注意主体留白"
+                            self.aiCoachMessage = "▲ 建议镜头平推2步 · 调整仰角"
                         }
                     }
                 }
             }
+        }
+        
+        // 尝试捕获当前取景帧，若 0.8s 硬件未回调立即保活发送，确保绝不卡死
+        cameraManager.takePhoto { capturedFrame in
+            sendAnalysis(capturedFrame)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            sendAnalysis(nil)
         }
     }
     

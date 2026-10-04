@@ -16,10 +16,23 @@ class ImageMeta(BaseModel):
     format: str = "jpeg"
 
 class AnalyzeCompositionRequest(BaseModel):
-    client_version: str = "2.0.0"
-    device_info: DeviceInfo
-    image_meta: ImageMeta
+    client_version: Optional[str] = "2.0.0"
+    device_info: Optional[DeviceInfo] = None
+    image_meta: Optional[ImageMeta] = None
     image_base64: str
+    # 扁平请求兼容字段
+    pitch: Optional[float] = 0.0
+    roll: Optional[float] = 0.0
+
+    def model_post_init(self, __context):
+        if self.device_info is None:
+            self.device_info = DeviceInfo(
+                platform="ios",
+                focal_length_mm=26.0,
+                sensor_attitude=SensorAttitude(pitch=self.pitch or 0.0, roll=self.roll or 0.0)
+            )
+        if self.image_meta is None:
+            self.image_meta = ImageMeta(width=720, height=960, format="jpeg")
 
 class CropBox(BaseModel):
     ymin: float = Field(..., ge=0.0, le=1.0)

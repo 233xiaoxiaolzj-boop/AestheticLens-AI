@@ -1274,55 +1274,92 @@
 
         const base64 = captureCurrentFrameBase64();
 
-        // 呼叫后端 API
-        fetch(`${API_BASE}/api/v1/vision/analyze-composition`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer mock-token-debug"
-            },
-            body: JSON.stringify({
-                pitch: -1.2,
-                roll: 0.3,
-                image_base64: base64
+        // 确保具备合法 JWT Token
+        ensureSimulatorToken().then(token => {
+            // 呼叫后端规范 API
+            fetch(`${API_BASE}/api/v1/vision/analyze-composition`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    client_version: "2.0.0",
+                    device_info: {
+                        platform: "web_simulator",
+                        focal_length_mm: 26.0,
+                        sensor_attitude: { pitch: -1.2, roll: 0.3 }
+                    },
+                    image_meta: { width: 720, height: 960, format: "jpeg" },
+                    image_base64: base64
+                })
             })
+            .then(res => res.json())
+            .then(res => {
+                btnText.innerText = "AI 智能构图诊断";
+                if (res.data && res.data.composition_guidance) {
+                    const guidance = res.data.composition_guidance;
+                    document.getElementById("coach-text").innerText = "✨ " + guidance.coach_tip;
+                    pill.style.opacity = 1;
+
+                    // 投影 AR 框
+                    const box = guidance.suggested_crop_box;
+                    crop.style.display = "block";
+                    crop.style.left = (box.xmin * 100) + "%";
+                    crop.style.top = (box.ymin * 100) + "%";
+                    crop.style.width = ((box.xmax - box.xmin) * 100) + "%";
+                    crop.style.height = ((box.ymax - box.ymin) * 100) + "%";
+
+                    if (res.data.filter_recommendation) {
+                        selectLut(res.data.filter_recommendation.preset_name_zh);
+                    }
+
+                    setTimeout(() => {
+                        pill.style.opacity = 0;
+                    }, 5000);
+                } else {
+                    document.getElementById("coach-text").innerText = "▲ 建议镜头平推2步 · 压低仰角";
+                    pill.style.opacity = 1;
+                    crop.style.display = "block";
+                    crop.style.left = "15%";
+                    crop.style.top = "18%";
+                    crop.style.width = "70%";
+                    crop.style.height = "64%";
+                    setTimeout(() => { pill.style.opacity = 0; }, 4000);
+                }
+            })
+            .catch(err => {
+                btnText.innerText = "AI 智能构图诊断";
+                document.getElementById("coach-text").innerText = "▲ 前进2步 · 调整仰角 3°";
+                pill.style.opacity = 1;
+                crop.style.display = "block";
+                crop.style.left = "15%";
+                crop.style.top = "18%";
+                crop.style.width = "70%";
+                crop.style.height = "64%";
+                setTimeout(() => { pill.style.opacity = 0; }, 4000);
+            });
+        });
+    }
+
+    // 获取或换发合法 JWT 令牌
+    let simulatorJwt = null;
+    function ensureSimulatorToken() {
+        if (simulatorJwt) return Promise.resolve(simulatorJwt);
+        return fetch(`${API_BASE}/api/v1/auth/device-register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ device_id: "sim_" + Date.now(), client_version: "2.0.0" })
         })
         .then(res => res.json())
         .then(res => {
-            btnText.innerText = "AI 智能构图诊断";
-            if (res.data && res.data.composition_guidance) {
-                const guidance = res.data.composition_guidance;
-                document.getElementById("coach-text").innerText = guidance.coach_tip;
-                pill.style.opacity = 1;
-
-                // 投影 AR 框
-                const box = guidance.suggested_crop_box;
-                crop.style.display = "block";
-                crop.style.left = (box.xmin * 100) + "%";
-                crop.style.top = (box.ymin * 100) + "%";
-                crop.style.width = ((box.xmax - box.xmin) * 100) + "%";
-                crop.style.height = ((box.ymax - box.ymin) * 100) + "%";
-
-                if (res.data.filter_recommendation) {
-                    selectLut(res.data.filter_recommendation.preset_name_zh);
-                }
-
-                setTimeout(() => {
-                    pill.style.opacity = 0;
-                }, 4000);
+            if (res.data && res.data.token) {
+                simulatorJwt = res.data.token;
+                return simulatorJwt;
             }
+            return "mock-token-debug";
         })
-        .catch(err => {
-            btnText.innerText = "AI 智能构图诊断";
-            document.getElementById("coach-text").innerText = "▲ 前进2步 · 调整仰角 3°";
-            pill.style.opacity = 1;
-            crop.style.display = "block";
-            crop.style.left = "15%";
-            crop.style.top = "18%";
-            crop.style.width = "70%";
-            crop.style.height = "64%";
-            setTimeout(() => { pill.style.opacity = 0; }, 4000);
-        });
+        .catch(() => "mock-token-debug");
     }
 
     // 快门拍照并进入调色工作台
@@ -1346,31 +1383,36 @@
 
         // 真实请求云端拍后调色诊断
         const base64 = captureCurrentFrameBase64();
-        fetch(`${API_BASE}/api/v1/retouch/analyze-and-grade`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer mock-token-debug"
-            },
-            body: JSON.stringify({
-                image_base64: base64
+        ensureSimulatorToken().then(token => {
+            fetch(`${API_BASE}/api/v1/retouch/analyze-and-grade`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    client_version: "2.0.0",
+                    photo_id: "sim_photo_" + Date.now(),
+                    image_meta: { width: 1080, height: 1440, format: "jpeg" },
+                    image_base64: base64
+                })
             })
-        })
-        .then(res => res.json())
-        .then(res => {
-            if (res.data) {
-                document.getElementById("ai-critique-text").innerText = res.data.aesthetic_diagnosis.overall_critique;
-                document.getElementById("recipe-style-title").innerText = res.data.aesthetic_diagnosis.style_name_zh;
-                const p = res.data.recommended_recipe.parameters;
-                document.getElementById("sl-exposure").value = p.exposure;
-                document.getElementById("sl-contrast").value = p.contrast;
-                document.getElementById("sl-temp").value = p.temperature;
-                document.getElementById("sl-sat").value = p.saturation;
-                updateGrading();
-            }
-        })
-        .catch(err => {
-            document.getElementById("ai-critique-text").innerText = "画面主体光影柔和，色温微暖，高光保护良好，建议维持胶片质感。";
+            .then(res => res.json())
+            .then(res => {
+                if (res.data) {
+                    document.getElementById("ai-critique-text").innerText = res.data.aesthetic_diagnosis.overall_critique;
+                    document.getElementById("recipe-style-title").innerText = res.data.aesthetic_diagnosis.style_name_zh;
+                    const p = res.data.recommended_recipe.parameters;
+                    document.getElementById("sl-exposure").value = p.exposure;
+                    document.getElementById("sl-contrast").value = p.contrast;
+                    document.getElementById("sl-temp").value = p.temperature;
+                    document.getElementById("sl-sat").value = p.saturation;
+                    updateGrading();
+                }
+            })
+            .catch(err => {
+                document.getElementById("ai-critique-text").innerText = "画面主体光影柔和，色温微暖，高光保护良好，建议维持胶片质感。";
+            });
         });
     }
 

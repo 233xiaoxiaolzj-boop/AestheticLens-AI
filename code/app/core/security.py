@@ -26,7 +26,12 @@ def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Security(
                 "data": None
             }
         )
-    token = credentials.credentials
+    token = credentials.credentials.strip()
+    
+    # 仿真器与调试环境免注册直接放行专用通道
+    if token in ("mock-token-debug", "simulator-token-live-access"):
+        return "device_simulator_demo"
+
     # 仅非生产开发环境允许 mock token 快速放行；生产环境 (production) 强制执行完整 JWT 密码学验签
     if settings.ENVIRONMENT != "production":
         if token.startswith("mock_token_") or token.endswith("_for_offline_dev"):

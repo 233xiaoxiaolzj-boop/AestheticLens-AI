@@ -100,7 +100,7 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 |         ├── **`Services/`** | 目录 | **核心硬件与底层服务层**。驱动硬件传感器与端云通信。 |
 |         │   ├── `CameraManager.swift` | 文件 | **相机管线管理服务**。封装 `AVCaptureSession`，负责相机权限申请、最高画质捕获、原生多摄硬件发现、**对标手机摄像头 0.5x~10.0x 连续变焦与严格 0.1x 精度步进算法**，并向渲染器分发 `CMSampleBuffer`。 |
 |         │   ├── `MotionManager.swift` | 文件 | **CoreMotion 60Hz 姿态解算服务**。实时采集陀螺仪与加速度计，解算 Pitch/Roll 物理角度，并在绝对倾角 $<0.5^\circ$ 时发布吸附对齐状态。 |
-|         │   ├── `APIClient.swift` | 文件 | **端云通信中台客户端**。实现生产 Live API 与离线 Mock 桩的自由切换，管理 JWT 凭证与 `/health` 连通性探测。 |
+|         │   ├── `APIClient.swift` | 文件 | **端云通信中台客户端**。实现生产 Live API 与离线 Mock 桩的自由切换，管理 JWT 凭证与 `/health` 连通性探测；具备 15.0s 跨国网络弹性超时、401 令牌自动续发重试与网络波动自动兜底自愈机制。 |
 |         │   └── **`VideoPlayerService.swift`** | 文件 | **【REQ-13 新增】视频播放与导出管线服务**。基于 AVFoundation 驱动视频播放、毫秒级进度拖拽跳转（Scrubbing）、多关键帧异步抽取、以及 Metal 硬件加速压制导出。 |
 |         ├── **`Render/`** | 目录 | **Apple Metal GPU 实时渲染管线**。 |
 |         │   ├── `MetalRenderer.swift` | 文件 | **Metal 零拷贝片元着色渲染器**。通过 `CVMetalTextureCache` 实现相机视频流零内存拷贝上屏，锁定 60fps 满帧运行，零显存泄漏。 |
