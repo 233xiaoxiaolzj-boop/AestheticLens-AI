@@ -14,10 +14,10 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
     @Published public var isRunning: Bool = false
     @Published public var currentPosition: AVCaptureDevice.Position = .back
     
-    // 变焦状态 (支持 0.5x, 1x, 2x, 5x 与捏合缩放)
+    // 变焦状态 (对标手机摄像头水平，支持 0.5x~10.0x 连续滑动，精度 0.1x)
     @Published public var currentZoom: CGFloat = 1.0
-    @Published public var minZoom: CGFloat = 1.0
-    @Published public var maxZoom: CGFloat = 5.0
+    @Published public var minZoom: CGFloat = 0.5
+    @Published public var maxZoom: CGFloat = 10.0
     
     // 真实录像状态
     @Published public var isRecordingVideo: Bool = false
@@ -77,10 +77,11 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
                 self.captureSession.sessionPreset = .high
             }
             
-            // 配置初始后置摄像头 (支持超广角或广角)
+            // 配置初始后置摄像头 (支持三摄/双超广角/双摄/广角)
             let deviceTypes: [AVCaptureDevice.DeviceType] = [
                 .builtInTripleCamera,
                 .builtInDualWideCamera,
+                .builtInDualCamera,
                 .builtInWideAngleCamera
             ]
             let discoverySession = AVCaptureDevice.DiscoverySession(
@@ -98,12 +99,13 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             self.currentDeviceInput = input
             self.currentCameraDevice = camera
             
-            // 读取变焦限制
-            let maxFactor = min(camera.activeFormat.videoMaxZoomFactor, 6.0)
+            // 对标真实手机硬件变焦能力 (支持超广角 0.5x 到数码长焦 10.0x / 15.0x)
+            let minFactor = camera.minAvailableVideoZoomFactor
+            let maxFactor = min(camera.maxAvailableVideoZoomFactor, 15.0)
             DispatchQueue.main.async {
-                self.minZoom = 1.0
-                self.maxZoom = maxFactor
-                self.currentZoom = 1.0
+                self.minZoom = min(minFactor, 1.0)
+                self.maxZoom = max(maxFactor, 5.0)
+                self.currentZoom = max(1.0, minFactor)
             }
             
             // 配置视频输出 (BGRA 格式供 Metal 实时采样)
@@ -155,11 +157,13 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
-    // MARK: - 手势与焦段变焦控制
+    // MARK: - 手势与焦段变焦控制 (对标手机摄像头硬件水平，滑动设置与 0.1x 精度步进)
     public func setZoom(factor: CGFloat) {
+        // 严格以 0.1x 步进进行四舍五入
+        let roundedFactor = (factor * 10.0).rounded() / 10.0
         sessionQueue.async { [weak self] in
             guard let self = self, let device = self.currentCameraDevice else { return }
-            let clampedFactor = max(self.minZoom, min(factor, self.maxZoom))
+            let clampedFactor = max(self.minZoom, min(roundedFactor, self.maxZoom))
             do {
                 try device.lockForConfiguration()
                 device.videoZoomFactor = clampedFactor
@@ -171,6 +175,12 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
                 print("[CameraManager] 设置变焦失败: \(error)")
             }
         }
+    }
+    
+    /// 单步步进（每次 +/- 0.1x 微调）
+    public func stepZoom(by delta: CGFloat) {
+        let target = currentZoom + delta
+        setZoom(factor: target)
     }
     
     // MARK: - 切换前后摄像头

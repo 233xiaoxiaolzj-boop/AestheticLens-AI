@@ -374,20 +374,92 @@
             background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%);
         }
 
-        /* 焦段快速切换盘 (0.5x, 1x, 2x, 3x) */
-        .zoom-selector {
+        /* 变焦综合控制台 (对标手机摄像头水平，滑动精度 0.1x) */
+        .zoom-control-suite {
+            width: 100%;
             display: flex;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(12px);
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .zoom-header-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .zoom-step-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .zoom-step-btn:hover {
+            background: rgba(251, 191, 36, 0.25);
+            color: #fbbf24;
+        }
+        .zoom-pill-display {
+            display: flex;
+            align-items: center;
+            gap: 5px;
             padding: 4px 12px;
-            border-radius: 30px;
-            margin-bottom: 12px;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            color: #fbbf24;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: monospace;
+            cursor: pointer;
+        }
+        .zoom-slider-box {
+            width: calc(100% - 48px);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 6px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: all 0.25s ease;
+        }
+        .zoom-slider-box input[type=range] {
+            width: 100%;
+            accent-color: #fbbf24;
+            cursor: pointer;
+            height: 4px;
+        }
+        .zoom-ticks {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.55);
+            font-family: monospace;
+            padding: 0 2px;
+        }
+        .zoom-quick-row {
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(10px);
+            padding: 3px 10px;
+            border-radius: 24px;
         }
         .zoom-btn {
             width: 34px;
-            height: 34px;
-            border-radius: 50%;
+            height: 26px;
+            border-radius: 13px;
             border: none;
             background: transparent;
             color: #fff;
@@ -395,7 +467,7 @@
             font-weight: 700;
             font-family: monospace;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
         }
         .zoom-btn.active {
             background: #fbbf24;
@@ -717,12 +789,36 @@
 
             <!-- 底部专业操控层 (飓风相机同款功能布局) -->
             <div class="controls-layer">
-                <!-- 焦段快捷键 -->
-                <div class="zoom-selector">
-                    <button class="zoom-btn" onclick="setZoom(0.5, this)">0.5×</button>
-                    <button class="zoom-btn active" onclick="setZoom(1.0, this)">1×</button>
-                    <button class="zoom-btn" onclick="setZoom(2.0, this)">2×</button>
-                    <button class="zoom-btn" onclick="setZoom(3.0, this)">3×</button>
+                <!-- 对标手机摄像头：0.1x 高精滑动变焦控制台 -->
+                <div class="zoom-control-suite">
+                    <div class="zoom-header-row">
+                        <button class="zoom-step-btn" title="减小 0.1x" onclick="stepZoom(-0.1)">−</button>
+                        <div class="zoom-pill-display" onclick="toggleZoomSlider()" title="点击展开/收起刻度滑条">
+                            <span id="zoom-readout">1.0×</span>
+                            <span style="font-size: 9px; opacity: 0.8;">▾</span>
+                        </div>
+                        <button class="zoom-step-btn" title="增加 0.1x" onclick="stepZoom(0.1)">+</button>
+                    </div>
+
+                    <div class="zoom-slider-box" id="zoom-slider-box">
+                        <input type="range" id="zoom-slider" min="0.5" max="10.0" step="0.1" value="1.0" oninput="onZoomSliderInput(this.value)">
+                        <div class="zoom-ticks">
+                            <span>0.5×</span>
+                            <span>1.0×</span>
+                            <span>2.0×</span>
+                            <span>3.0×</span>
+                            <span>5.0×</span>
+                            <span>10.0×</span>
+                        </div>
+                    </div>
+
+                    <div class="zoom-quick-row">
+                        <button class="zoom-btn" onclick="setZoom(0.5)">0.5×</button>
+                        <button class="zoom-btn active" onclick="setZoom(1.0)">1×</button>
+                        <button class="zoom-btn" onclick="setZoom(2.0)">2×</button>
+                        <button class="zoom-btn" onclick="setZoom(3.0)">3×</button>
+                        <button class="zoom-btn" onclick="setZoom(5.0)">5×</button>
+                    </div>
                 </div>
 
                 <!-- ✨ 灵瞳 AI 智能构图专属大按钮 -->
@@ -892,37 +988,70 @@
         document.getElementById("viewfinder-video").style.filter = filterCSS;
     }
 
-    // 焦段切换
-    function setZoom(factor, btn) {
-        currentZoom = factor;
-        document.querySelectorAll(".zoom-btn").forEach(el => el.classList.remove("active"));
-        if (btn) btn.classList.add("active");
+    // 0.1x 滑动变焦与多焦段联动
+    function onZoomSliderInput(val) {
+        currentZoom = Math.round(parseFloat(val) * 10) / 10;
+        applyZoom(true);
+    }
+
+    function stepZoom(delta) {
+        let target = Math.round((currentZoom + delta) * 10) / 10;
+        target = Math.max(0.5, Math.min(10.0, target));
+        currentZoom = target;
         applyZoom();
+    }
+
+    function setZoom(factor) {
+        currentZoom = Math.round(factor * 10) / 10;
+        applyZoom();
+    }
+
+    function toggleZoomSlider() {
+        const box = document.getElementById("zoom-slider-box");
+        box.style.display = (box.style.display === "none") ? "flex" : "none";
     }
 
     function handleWheelZoom(e) {
         e.preventDefault();
-        if (e.deltaY < 0) {
-            currentZoom = Math.min(3.5, currentZoom + 0.1);
-        } else {
-            currentZoom = Math.max(0.5, currentZoom - 0.1);
-        }
-        applyZoom();
+        const delta = e.deltaY < 0 ? 0.1 : -0.1;
+        stepZoom(delta);
     }
 
-    function applyZoom() {
-        const scaleVal = (isFlipped ? -1 : 1) * currentZoom;
-        const transformStr = `scale(${isFlipped ? -currentZoom : currentZoom}, ${currentZoom})`;
+    function applyZoom(fromSlider = false) {
+        const scaleVal = currentZoom;
+        const transformStr = `scale(${isFlipped ? -scaleVal : scaleVal}, ${scaleVal})`;
         document.getElementById("viewfinder-img").style.transform = transformStr;
         document.getElementById("viewfinder-video").style.transform = transformStr;
 
+        // 更新顶部/悬浮倍率读数
+        const readout = document.getElementById("zoom-readout");
+        if (readout) readout.innerText = currentZoom.toFixed(1) + "×";
+        
         const bubble = document.getElementById("zoom-bubble");
-        bubble.innerText = currentZoom.toFixed(1) + "×";
-        bubble.style.opacity = 1;
-        clearTimeout(window.zoomTimer);
-        window.zoomTimer = setTimeout(() => {
-            bubble.style.opacity = 0;
-        }, 1200);
+        if (bubble) {
+            bubble.innerText = currentZoom.toFixed(1) + "×";
+            bubble.style.opacity = 1;
+            clearTimeout(window.zoomTimer);
+            window.zoomTimer = setTimeout(() => {
+                bubble.style.opacity = 0;
+            }, 1200);
+        }
+
+        // 同步滑块
+        if (!fromSlider) {
+            const slider = document.getElementById("zoom-slider");
+            if (slider) slider.value = currentZoom.toFixed(1);
+        }
+
+        // 高亮对应的快捷胶囊
+        document.querySelectorAll(".zoom-btn").forEach(btn => {
+            const btnFactor = parseFloat(btn.innerText);
+            if (Math.abs(btnFactor - currentZoom) < 0.05) {
+                btn.classList.add("active");
+            } else {
+                btn.classList.remove("active");
+            }
+        });
     }
 
     function flipCamera() {

@@ -98,7 +98,7 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 |         │   ├── `RetouchModels.swift` | 文件 | **拍后调色工作台数据结构**。包含 AI 诊断分析、目标风格与 10 项专业参数滑块模型 `RecipeParameters`。 |
 |         │   └── **`VideoRetouchModels.swift`** | 文件 | **【REQ-13 新增】成品视频调色数据模型**。定义视频元数据 `VideoMeta`、多关键帧抽取实体 `KeyframeItem`、运镜与色彩连续性诊断及全局视频调色配方。 |
 |         ├── **`Services/`** | 目录 | **核心硬件与底层服务层**。驱动硬件传感器与端云通信。 |
-|         │   ├── `CameraManager.swift` | 文件 | **相机管线管理服务**。封装 `AVCaptureSession`，负责相机权限申请、1080p 60fps 取景捕获，并向渲染器分发 `CMSampleBuffer`。 |
+|         │   ├── `CameraManager.swift` | 文件 | **相机管线管理服务**。封装 `AVCaptureSession`，负责相机权限申请、最高画质捕获、原生多摄硬件发现、**对标手机摄像头 0.5x~10.0x 连续变焦与严格 0.1x 精度步进算法**，并向渲染器分发 `CMSampleBuffer`。 |
 |         │   ├── `MotionManager.swift` | 文件 | **CoreMotion 60Hz 姿态解算服务**。实时采集陀螺仪与加速度计，解算 Pitch/Roll 物理角度，并在绝对倾角 $<0.5^\circ$ 时发布吸附对齐状态。 |
 |         │   ├── `APIClient.swift` | 文件 | **端云通信中台客户端**。实现生产 Live API 与离线 Mock 桩的自由切换，管理 JWT 凭证与 `/health` 连通性探测。 |
 |         │   └── **`VideoPlayerService.swift`** | 文件 | **【REQ-13 新增】视频播放与导出管线服务**。基于 AVFoundation 驱动视频播放、毫秒级进度拖拽跳转（Scrubbing）、多关键帧异步抽取、以及 Metal 硬件加速压制导出。 |
@@ -109,7 +109,7 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 |         ├── **`Resources/`** | 目录 | **客户端静态资源包**。收纳滤镜贴图与本地模型资源。 |
 |         │   └── **`luts/`** | 目录 | **512x512 3D LUT 胶片纹理贴图库**。收纳 4 套经典胶片滤镜（`lut_film_warm_01.png`、`lut_clean_bright_02.png`、`lut_cyber_teal_orange_03.png`、`lut_mono_contrast_04.png`）与基准贴图。 |
 |         └── **`Views/`** | 目录 | **用户界面与 HUD 视觉呈现层**。 |
-|             ├── `CameraView.swift` | 文件 | **取景器主视图**。聚合全屏相机底图、中心水平仪、AR 构图框、顶部状态微标、照片/视频模式轮播与快门。 |
+|             ├── `CameraView.swift` | 文件 | **取景器主视图**。聚合全屏相机底图、中心水平仪、AR 构图框、顶部状态微标、照片/视频模式轮播、快门、**对标手机摄像头的 0.1x 高精滑动刻度尺变焦控制台（含单步 +/- 0.1x 微调与经典焦段瞬切）**。 |
 |             ├── `LevelGaugeView.swift` | 文件 | **动态水平仪 HUD 视图**。展示 60Hz 响应的中心十字微光准星，水平对准时呈现亮绿色并带有柔光呼吸感。 |
 |             ├── `NavigationOverlayView.swift` | 文件 | **空间机位 4 向导航与 AR 虚线框视图**。在取景器上投影金色黄金构图虚线框与黄色半透明动态胶囊建议（如“▲ 前进2步”）。 |
 |             ├── `SettingsView.swift` | 文件 | **系统设置与关于视图**。展示偏好开关与隐私声明；**在版本号文本上监听连续三击手势（`count: 3`）唤出隐藏调试中台**。 |

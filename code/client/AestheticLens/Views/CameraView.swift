@@ -28,8 +28,9 @@ public struct CameraView: View {
     @State private var activeLutName: String = "自然原画"
     private let availableLuts: [String] = ["自然原画", "落日暖调", "纯净清透", "赛博青橙", "德味黑白"]
     
-    // 手势变焦临时缩放倍数
-    @State private var pinchZoomFactor: CGFloat = 1.0
+    // 对标手机摄像头变焦状态 (支持 0.5x~10.0x 连续滑动设置，精度 0.1x)
+    @State private var isZoomRulerExpanded: Bool = true
+    @State private var baseZoomFactor: CGFloat = 1.0
     @State private var showZoomIndicator: Bool = false
     
     // 相册挑选状态 (支持历史照片与视频直接导入进行 AI 润色)
@@ -60,15 +61,19 @@ public struct CameraView: View {
                 .onAppear {
                     cameraManager.startSession()
                 }
-                // 双指捏合手势变焦 (Pinch-to-Zoom)
+                // 双指捏合手势变焦 (Pinch-to-Zoom，0.1x 精度吸附)
                 .gesture(
                     MagnificationGesture()
                         .onChanged { scale in
-                            let targetZoom = cameraManager.currentZoom * scale
+                            if showZoomIndicator == false {
+                                baseZoomFactor = cameraManager.currentZoom
+                                showZoomIndicator = true
+                            }
+                            let targetZoom = (baseZoomFactor * scale * 10.0).rounded() / 10.0
                             cameraManager.setZoom(factor: targetZoom)
-                            showZoomIndicator = true
                         }
                         .onEnded { _ in
+                            baseZoomFactor = cameraManager.currentZoom
                             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                                 showZoomIndicator = false
                             }
@@ -137,9 +142,9 @@ public struct CameraView: View {
                 
                 Spacer()
                 
-                // 飓风相机同款：多焦段快速切换按键盘 (0.5x, 1x, 2x, 3x)
-                zoomSelectorRow
-                    .padding(.bottom, 10)
+                // 对标手机摄像头：0.1x 高精滑动变焦控制台
+                professionalZoomControl
+                    .padding(.bottom, 8)
                 
                 // 【核心专属按键】：✨ 灵瞳 AI 实时构图大师按键
                 aiCompositionTriggerButton
@@ -281,22 +286,130 @@ public struct CameraView: View {
         .padding(.horizontal, 24)
     }
     
-    // MARK: - 飓风相机同款：多焦段快速切换按键 (0.5x, 1x, 2x, 3x)
-    private var zoomSelectorRow: some View {
-        HStack(spacing: 16) {
-            zoomButton(label: "0.5×", factor: 1.0) // 广角/超广角基准
-            zoomButton(label: "1×", factor: 1.0)
-            zoomButton(label: "2×", factor: 2.0)
-            zoomButton(label: "3×", factor: 3.0)
+    // MARK: - 专业相机滑动变焦控制台 (对标原生手机摄像头，滑动精度 0.1x，支持 0.5x~10.0x 连续变焦)
+    private var professionalZoomControl: some View {
+        VStack(spacing: 6) {
+            // 1. 精密倍率显示与 +/- 0.1x 单步微调
+            HStack(spacing: 12) {
+                // 减少 0.1x
+                Button(action: {
+                    let generator = UISelectionFeedbackGenerator()
+                    generator.selectionChanged()
+                    cameraManager.stepZoom(by: -0.1)
+                }) {
+                    Image(systemName: "minus")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 26, height: 26)
+                        .background(Color.black.opacity(0.55))
+                        .clipShape(Circle())
+                }
+                .contentShape(Circle())
+                
+                // 当前倍率数值胶囊 (点击展开/收起精密刻度滑条)
+                Button(action: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        isZoomRulerExpanded.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Text(String(format: "%.1f×", cameraManager.currentZoom))
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.4))
+                        Image(systemName: isZoomRulerExpanded ? "chevron.down" : "slider.horizontal.3")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.65))
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(Color(red: 1.0, green: 0.85, blue: 0.4).opacity(0.5), lineWidth: 1)
+                    )
+                }
+                .contentShape(Capsule())
+                
+                // 增加 0.1x
+                Button(action: {
+                    let generator = UISelectionFeedbackGenerator()
+                    generator.selectionChanged()
+                    cameraManager.stepZoom(by: 0.1)
+                }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 26, height: 26)
+                        .background(Color.black.opacity(0.55))
+                        .clipShape(Circle())
+                }
+                .contentShape(Circle())
+            }
+            
+            // 2. 0.1x 精密滑动刻度设置条 (对标真实手机摄像头无级滚轮)
+            if isZoomRulerExpanded {
+                VStack(spacing: 4) {
+                    Slider(
+                        value: Binding(
+                            get: { Double(cameraManager.currentZoom) },
+                            set: { newValue in
+                                let rounded = CGFloat((newValue * 10.0).rounded() / 10.0)
+                                if abs(rounded - cameraManager.currentZoom) >= 0.05 {
+                                    let generator = UISelectionFeedbackGenerator()
+                                    generator.selectionChanged()
+                                    cameraManager.setZoom(factor: rounded)
+                                }
+                            }
+                        ),
+                        in: 0.5...10.0,
+                        step: 0.1
+                    )
+                    .accentColor(Color(red: 1.0, green: 0.85, blue: 0.4))
+                    .padding(.horizontal, 24)
+                    
+                    // 硬件焦段标尺指示 (超广角 -> 广角 -> 人像 -> 长焦)
+                    HStack {
+                        Text("0.5× 广角")
+                        Spacer()
+                        Text("1.0× 标准")
+                        Spacer()
+                        Text("2.0×")
+                        Spacer()
+                        Text("3.0× 人像")
+                        Spacer()
+                        Text("5.0× 特写")
+                        Spacer()
+                        Text("10.0×")
+                    }
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.55))
+                    .padding(.horizontal, 24)
+                }
+                .padding(.vertical, 6)
+                .background(Color.black.opacity(0.5))
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+            
+            // 3. 飓风相机同款：常用基准焦段瞬切胶囊组 (0.5x, 1x, 2x, 3x, 5x)
+            HStack(spacing: 12) {
+                zoomQuickButton(label: "0.5×", factor: 0.5)
+                zoomQuickButton(label: "1×", factor: 1.0)
+                zoomQuickButton(label: "2×", factor: 2.0)
+                zoomQuickButton(label: "3×", factor: 3.0)
+                zoomQuickButton(label: "5×", factor: 5.0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 5)
+            .background(Color.black.opacity(0.4))
+            .clipShape(Capsule())
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
-        .background(Color.black.opacity(0.4))
-        .clipShape(Capsule())
     }
     
-    private func zoomButton(label: String, factor: CGFloat) -> some View {
-        let isSelected = abs(cameraManager.currentZoom - factor) < 0.2
+    private func zoomQuickButton(label: String, factor: CGFloat) -> some View {
+        let isSelected = abs(cameraManager.currentZoom - factor) < 0.05
         return Button(action: {
             let generator = UIImpactFeedbackGenerator(style: .light)
             generator.impactOccurred()
@@ -305,7 +418,7 @@ public struct CameraView: View {
             Text(label)
                 .font(.system(size: 11, weight: isSelected ? .bold : .medium, design: .monospaced))
                 .foregroundColor(isSelected ? .black : .white)
-                .frame(width: 38, height: 28)
+                .frame(width: 36, height: 26)
                 .background(isSelected ? Color(red: 1.0, green: 0.85, blue: 0.4) : Color.clear)
                 .clipShape(Circle())
         }
