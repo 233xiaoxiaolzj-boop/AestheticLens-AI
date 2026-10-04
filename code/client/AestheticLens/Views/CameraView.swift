@@ -218,7 +218,7 @@ public struct CameraView: View {
                 Circle()
                     .fill(Color(red: 0.2, green: 0.85, blue: 0.5))
                     .frame(width: 7, height: 7)
-                Text(compositionEngine.isGuidanceActive ? "60Hz 实时引导中" : "AI 构图就绪")
+                Text((compositionEngine.state != .inactive) ? "60Hz 实时引导中" : "AI 构图就绪")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.white)
             }
@@ -416,19 +416,19 @@ public struct CameraView: View {
     private var aiCompositionTriggerButton: some View {
         Button(action: {
             impactFeedback.impactOccurred()
-            if compositionEngine.isGuidanceActive {
-                compositionEngine.stopGuidance()
+            if (compositionEngine.state != .inactive) {
+                compositionEngine.stopRealtimeGuidance()
             } else {
-                compositionEngine.startGuidance()
+                compositionEngine.startRealtimeGuidance(cameraManager: cameraManager)
                 triggerAICompositionAnalysis()
             }
         }) {
             HStack(spacing: 8) {
-                Image(systemName: compositionEngine.isGuidanceActive ? "sparkles.rectangle.stack.fill" : "sparkles")
+                Image(systemName: (compositionEngine.state != .inactive) ? "sparkles.rectangle.stack.fill" : "sparkles")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(compositionEngine.isGuidanceActive ? Color(red: 0.0, green: 1.0, blue: 0.5) : Color(red: 1.0, green: 0.88, blue: 0.35))
+                    .foregroundColor((compositionEngine.state != .inactive) ? Color(red: 0.0, green: 1.0, blue: 0.5) : Color(red: 1.0, green: 0.88, blue: 0.35))
                 
-                Text(compositionEngine.isGuidanceActive ? "60Hz 实时构图对齐中 · 点击退出" : "开启 AI 实时构图指挥")
+                Text((compositionEngine.state != .inactive) ? "60Hz 实时构图对齐中 · 点击退出" : "开启 AI 实时构图指挥")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.white)
             }
@@ -436,11 +436,11 @@ public struct CameraView: View {
             .padding(.vertical, 7)
             .background(
                 Capsule()
-                    .fill(compositionEngine.isGuidanceActive ? Color(red: 0.0, green: 0.3, blue: 0.15).opacity(0.85) : Color.white.opacity(0.15))
+                    .fill((compositionEngine.state != .inactive) ? Color(red: 0.0, green: 0.3, blue: 0.15).opacity(0.85) : Color.white.opacity(0.15))
             )
             .overlay(
                 Capsule()
-                    .stroke(compositionEngine.isGuidanceActive ? Color(red: 0.0, green: 1.0, blue: 0.5) : Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.5), lineWidth: 1.2)
+                    .stroke((compositionEngine.state != .inactive) ? Color(red: 0.0, green: 1.0, blue: 0.5) : Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.5), lineWidth: 1.2)
             )
         }
         .contentShape(Capsule())
@@ -713,5 +713,22 @@ public struct CameraView: View {
         let m = seconds / 60
         let s = seconds % 60
         return String(format: "%02d:%02d", m, s)
+    }
+}
+
+
+// MARK: - 视频相册传输辅助
+struct VideoTransferable: Transferable {
+    let url: URL
+    
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { movie in
+            SentTransferredFile(movie.url)
+        } importing: { receivedData in
+            let tempDir = FileManager.default.temporaryDirectory
+            let targetURL = tempDir.appendingPathComponent(UUID().uuidString + ".mov")
+            try FileManager.default.copyItem(at: receivedData.file, to: targetURL)
+            return Self(url: targetURL)
+        }
     }
 }

@@ -160,11 +160,16 @@ public final class RealtimeCompositionEngine: ObservableObject {
             }
         }
         
-        cameraManager.takePhoto { frame in
+        // 优先从视频流零开销提取实时预览帧，彻底杜绝触发物理快门拍照
+        if let frame = cameraManager.captureLatestPreviewFrame() {
             analyzeClosure(frame)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            analyzeClosure(nil)
+        } else {
+            cameraManager.takePhoto { frame in
+                analyzeClosure(frame)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                analyzeClosure(nil)
+            }
         }
     }
     
