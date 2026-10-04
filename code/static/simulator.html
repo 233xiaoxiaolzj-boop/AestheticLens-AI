@@ -374,104 +374,159 @@
             background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%);
         }
 
-        /* 变焦综合控制台 (对标手机摄像头水平，滑动精度 0.1x) */
-        .zoom-control-suite {
+        /* 苹果原生相机无级滑动刻度轮盘 (100% 还原手势交互，绝无加减多余按键) */
+        .apple-zoom-container {
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .zoom-header-row {
+            height: 68px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 6px;
+            user-select: none;
         }
-        .zoom-step-btn {
-            width: 26px;
-            height: 26px;
+
+        /* 1. 常态：圆圈胶囊栏 (.5, 1, 2, 3, 5) */
+        .zoom-circles-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(12px);
+            padding: 5px 14px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: opacity 0.25s, transform 0.25s;
+        }
+        .zoom-circle-btn {
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            border: none;
-            background: rgba(0, 0, 0, 0.55);
-            backdrop-filter: blur(8px);
+            border: 1.5px solid transparent;
+            background: rgba(0, 0, 0, 0.5);
             color: #fff;
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 700;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.2s;
         }
-        .zoom-step-btn:hover {
-            background: rgba(251, 191, 36, 0.25);
+        .zoom-circle-btn.active {
             color: #fbbf24;
+            border-color: #fbbf24;
+            transform: scale(1.08);
+            font-size: 12px;
         }
-        .zoom-pill-display {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 12px;
-            background: rgba(0, 0, 0, 0.65);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            border: 1px solid rgba(251, 191, 36, 0.4);
-            color: #fbbf24;
-            font-size: 13px;
-            font-weight: 700;
-            font-family: monospace;
-            cursor: pointer;
-        }
-        .zoom-slider-box {
-            width: calc(100% - 48px);
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(12px);
-            border-radius: 12px;
-            padding: 6px 14px;
+
+        /* 2. 展开态：苹果原生相机刻度盘 (手势无级滑动) */
+        .zoom-wheel-view {
+            position: absolute;
+            width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            transition: all 0.25s ease;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+            transition: opacity 0.25s, transform 0.25s;
         }
-        .zoom-slider-box input[type=range] {
-            width: 100%;
-            accent-color: #fbbf24;
-            cursor: pointer;
-            height: 4px;
+        .zoom-wheel-view.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
         }
-        .zoom-ticks {
-            display: flex;
-            justify-content: space-between;
-            font-size: 9px;
-            color: rgba(255, 255, 255, 0.55);
+        .zoom-wheel-readout {
+            font-size: 16px;
+            font-weight: 800;
             font-family: monospace;
-            padding: 0 2px;
+            color: #fbbf24;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+            margin-bottom: 2px;
         }
-        .zoom-quick-row {
+        .zoom-wheel-stage {
+            width: calc(100% - 40px);
+            height: 42px;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(16px);
+            border-radius: 14px;
+            position: relative;
+            overflow: hidden;
             display: flex;
-            gap: 8px;
-            background: rgba(0, 0, 0, 0.45);
-            backdrop-filter: blur(10px);
-            padding: 3px 10px;
-            border-radius: 24px;
+            align-items: center;
+            cursor: grab;
+            mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
         }
-        .zoom-btn {
-            width: 34px;
-            height: 26px;
-            border-radius: 13px;
-            border: none;
-            background: transparent;
-            color: #fff;
-            font-size: 11px;
+        .zoom-wheel-stage:active {
+            cursor: grabbing;
+        }
+        .zoom-wheel-track {
+            position: absolute;
+            left: 50%;
+            display: flex;
+            align-items: flex-end;
+            height: 36px;
+            will-change: transform;
+            transition: none;
+        }
+        .wheel-tick {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            width: 6.5px;
+            flex-shrink: 0;
+        }
+        .wheel-tick .tick-bar {
+            width: 1px;
+            height: 7px;
+            background: rgba(255, 255, 255, 0.35);
+        }
+        .wheel-tick.half .tick-bar {
+            width: 1.2px;
+            height: 11px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+        .wheel-tick.major .tick-bar {
+            width: 1.5px;
+            height: 16px;
+            background: #fff;
+        }
+        .wheel-tick .tick-label {
+            font-size: 8px;
             font-weight: 700;
+            color: rgba(255, 255, 255, 0.85);
             font-family: monospace;
-            cursor: pointer;
-            transition: all 0.15s;
+            line-height: 1;
+            margin-top: 2px;
         }
-        .zoom-btn.active {
+        .zoom-wheel-needle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .zoom-wheel-needle .triangle {
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #fbbf24;
+        }
+        .zoom-wheel-needle .line {
+            width: 2px;
+            height: 18px;
             background: #fbbf24;
-            color: #000;
+            border-radius: 1px;
+            box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
         }
 
         /* 专属【✨ 灵瞳 AI 智能构图】大按钮 */
@@ -789,35 +844,27 @@
 
             <!-- 底部专业操控层 (飓风相机同款功能布局) -->
             <div class="controls-layer">
-                <!-- 对标手机摄像头：0.1x 高精滑动变焦控制台 -->
-                <div class="zoom-control-suite">
-                    <div class="zoom-header-row">
-                        <button class="zoom-step-btn" title="减小 0.1x" onclick="stepZoom(-0.1)">−</button>
-                        <div class="zoom-pill-display" onclick="toggleZoomSlider()" title="点击展开/收起刻度滑条">
-                            <span id="zoom-readout">1.0×</span>
-                            <span style="font-size: 9px; opacity: 0.8;">▾</span>
-                        </div>
-                        <button class="zoom-step-btn" title="增加 0.1x" onclick="stepZoom(0.1)">+</button>
+                <!-- 苹果原生相机无级滑动变焦刻度盘 (纯手势滑动无级设置，绝无多余按键) -->
+                <div class="apple-zoom-container" id="apple-zoom-container">
+                    <!-- 1. 常态：苹果经典焦段圆圈栏 (.5, 1, 2, 3, 5)，手指左右一滑立即呼出刻度盘 -->
+                    <div class="zoom-circles-row" id="zoom-circles-row">
+                        <button class="zoom-circle-btn" onclick="selectPresetZoom(0.5, event)">.5</button>
+                        <button class="zoom-circle-btn active" onclick="selectPresetZoom(1.0, event)">1</button>
+                        <button class="zoom-circle-btn" onclick="selectPresetZoom(2.0, event)">2</button>
+                        <button class="zoom-circle-btn" onclick="selectPresetZoom(3.0, event)">3</button>
+                        <button class="zoom-circle-btn" onclick="selectPresetZoom(5.0, event)">5</button>
                     </div>
 
-                    <div class="zoom-slider-box" id="zoom-slider-box">
-                        <input type="range" id="zoom-slider" min="0.5" max="10.0" step="0.1" value="1.0" oninput="onZoomSliderInput(this.value)">
-                        <div class="zoom-ticks">
-                            <span>0.5×</span>
-                            <span>1.0×</span>
-                            <span>2.0×</span>
-                            <span>3.0×</span>
-                            <span>5.0×</span>
-                            <span>10.0×</span>
+                    <!-- 2. 展开态：苹果原生相机手势刻度盘 (手势无级拖拽，精度严格 0.1x) -->
+                    <div class="zoom-wheel-view" id="zoom-wheel-view">
+                        <div class="zoom-wheel-readout" id="zoom-wheel-readout">1.0×</div>
+                        <div class="zoom-wheel-stage" id="zoom-wheel-stage">
+                            <div class="zoom-wheel-track" id="zoom-wheel-track"></div>
+                            <div class="zoom-wheel-needle">
+                                <div class="triangle"></div>
+                                <div class="line"></div>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="zoom-quick-row">
-                        <button class="zoom-btn" onclick="setZoom(0.5)">0.5×</button>
-                        <button class="zoom-btn active" onclick="setZoom(1.0)">1×</button>
-                        <button class="zoom-btn" onclick="setZoom(2.0)">2×</button>
-                        <button class="zoom-btn" onclick="setZoom(3.0)">3×</button>
-                        <button class="zoom-btn" onclick="setZoom(5.0)">5×</button>
                     </div>
                 </div>
 
@@ -988,45 +1035,196 @@
         document.getElementById("viewfinder-video").style.filter = filterCSS;
     }
 
-    // 0.1x 滑动变焦与多焦段联动
-    function onZoomSliderInput(val) {
-        currentZoom = Math.round(parseFloat(val) * 10) / 10;
-        applyZoom(true);
+    // ==========================================
+    // 苹果原生相机同款手势滑动刻度盘逻辑 (0.1x 无级手势，绝无加减按钮)
+    // ==========================================
+    let isDialActive = false;
+    let dialDismissTimer = null;
+    let dialDragStartX = 0;
+    let dialDragStartZoom = 1.0;
+    const TICK_SPACING = 6.5; // 每 0.1x 间距 6.5px
+
+    // 初始化刻度盘刻度线 (0.5 到 10.0，step 0.1)
+    function initAppleZoomWheel() {
+        const track = document.getElementById("zoom-wheel-track");
+        if (!track) return;
+        track.innerHTML = "";
+
+        for (let idx = 0; idx <= 95; idx++) {
+            const val = 0.5 + idx * 0.1;
+            const isMajor = Math.abs(Math.round(val) - val) < 0.01 || Math.abs(val - 0.5) < 0.01;
+            const isHalf = Math.abs(val * 2.0 - Math.round(val * 2.0)) < 0.01;
+
+            const tick = document.createElement("div");
+            tick.className = "wheel-tick" + (isMajor ? " major" : (isHalf ? " half" : ""));
+
+            const bar = document.createElement("div");
+            bar.className = "tick-bar";
+            tick.appendChild(bar);
+
+            if (isMajor) {
+                const label = document.createElement("div");
+                label.className = "tick-label";
+                label.innerText = (val === 0.5) ? ".5" : Math.round(val);
+                tick.appendChild(label);
+            }
+
+            track.appendChild(tick);
+        }
+
+        bindWheelGestures();
+        updateWheelPosition();
     }
 
-    function stepZoom(delta) {
+    // 点击常态预设圆圈
+    function selectPresetZoom(factor, e) {
+        if (e) e.stopPropagation();
+        currentZoom = factor;
+        applyZoom();
+        updatePresetCircles();
+    }
+
+    // 绑定手势：圆圈栏与刻度盘的无缝滑动联动
+    function bindWheelGestures() {
+        const circlesRow = document.getElementById("zoom-circles-row");
+        const wheelStage = document.getElementById("zoom-wheel-stage");
+
+        // 1. 在常态圆圈上滑动即刻展开刻度盘
+        let isRowDragging = false;
+        circlesRow.addEventListener("mousedown", (e) => {
+            isRowDragging = true;
+            dialDragStartX = e.clientX;
+            dialDragStartZoom = currentZoom;
+            showZoomWheel();
+        });
+
+        window.addEventListener("mousemove", (e) => {
+            if (!isRowDragging && !isWheelDragging) return;
+            const deltaX = e.clientX - dialDragStartX;
+            const deltaSteps = -deltaX / TICK_SPACING;
+            let targetZoom = dialDragStartZoom + deltaSteps * 0.1;
+            targetZoom = Math.max(0.5, Math.min(10.0, Math.round(targetZoom * 10) / 10));
+            if (targetZoom !== currentZoom) {
+                currentZoom = targetZoom;
+                applyZoom();
+                updateWheelPosition();
+            }
+        });
+
+        window.addEventListener("mouseup", () => {
+            if (isRowDragging || isWheelDragging) {
+                isRowDragging = false;
+                isWheelDragging = false;
+                scheduleWheelDismiss();
+            }
+        });
+
+        // 2. 在刻度盘上的直接滑动拖拽
+        let isWheelDragging = false;
+        wheelStage.addEventListener("mousedown", (e) => {
+            isWheelDragging = true;
+            dialDragStartX = e.clientX;
+            dialDragStartZoom = currentZoom;
+            clearTimeout(dialDismissTimer);
+        });
+
+        // 3. 触摸屏滑动支持
+        wheelStage.addEventListener("touchstart", (e) => {
+            isWheelDragging = true;
+            dialDragStartX = e.touches[0].clientX;
+            dialDragStartZoom = currentZoom;
+            clearTimeout(dialDismissTimer);
+        }, { passive: true });
+
+        wheelStage.addEventListener("touchmove", (e) => {
+            if (!isWheelDragging) return;
+            const deltaX = e.touches[0].clientX - dialDragStartX;
+            const deltaSteps = -deltaX / TICK_SPACING;
+            let targetZoom = dialDragStartZoom + deltaSteps * 0.1;
+            targetZoom = Math.max(0.5, Math.min(10.0, Math.round(targetZoom * 10) / 10));
+            if (targetZoom !== currentZoom) {
+                currentZoom = targetZoom;
+                applyZoom();
+                updateWheelPosition();
+            }
+        }, { passive: true });
+
+        wheelStage.addEventListener("touchend", () => {
+            isWheelDragging = false;
+            scheduleWheelDismiss();
+        });
+    }
+
+    function showZoomWheel() {
+        isDialActive = true;
+        clearTimeout(dialDismissTimer);
+        const wheel = document.getElementById("zoom-wheel-view");
+        const circles = document.getElementById("zoom-circles-row");
+        if (wheel) wheel.classList.add("active");
+        if (circles) circles.style.opacity = "0";
+        updateWheelPosition();
+    }
+
+    function scheduleWheelDismiss() {
+        clearTimeout(dialDismissTimer);
+        dialDismissTimer = setTimeout(() => {
+            isDialActive = false;
+            const wheel = document.getElementById("zoom-wheel-view");
+            const circles = document.getElementById("zoom-circles-row");
+            if (wheel) wheel.classList.remove("active");
+            if (circles) {
+                circles.style.opacity = "1";
+                updatePresetCircles();
+            }
+        }, 1500);
+    }
+
+    function updateWheelPosition() {
+        const track = document.getElementById("zoom-wheel-track");
+        const readout = document.getElementById("zoom-wheel-readout");
+        if (readout) readout.innerText = currentZoom.toFixed(1) + "×";
+
+        if (track) {
+            const stepIndex = (currentZoom - 0.5) / 0.1;
+            const offset = -stepIndex * TICK_SPACING;
+            track.style.transform = `translateX(${offset}px)`;
+        }
+    }
+
+    function updatePresetCircles() {
+        document.querySelectorAll(".zoom-circle-btn").forEach(btn => {
+            const factor = parseFloat(btn.innerText.replace("×", ""));
+            const isMatch = Math.abs(factor - currentZoom) < 0.15;
+            if (isMatch) {
+                btn.classList.add("active");
+                if (Math.abs(factor - currentZoom) >= 0.05) {
+                    btn.innerText = currentZoom.toFixed(1);
+                }
+            } else {
+                btn.classList.remove("active");
+            }
+        });
+    }
+
+    // 鼠标滚轮滑动变焦 (对齐苹果手势无级变焦)
+    function handleWheelZoom(e) {
+        e.preventDefault();
+        showZoomWheel();
+        const delta = e.deltaY < 0 ? 0.1 : -0.1;
         let target = Math.round((currentZoom + delta) * 10) / 10;
         target = Math.max(0.5, Math.min(10.0, target));
         currentZoom = target;
         applyZoom();
+        updateWheelPosition();
+        scheduleWheelDismiss();
     }
 
-    function setZoom(factor) {
-        currentZoom = Math.round(factor * 10) / 10;
-        applyZoom();
-    }
-
-    function toggleZoomSlider() {
-        const box = document.getElementById("zoom-slider-box");
-        box.style.display = (box.style.display === "none") ? "flex" : "none";
-    }
-
-    function handleWheelZoom(e) {
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? 0.1 : -0.1;
-        stepZoom(delta);
-    }
-
-    function applyZoom(fromSlider = false) {
+    function applyZoom() {
         const scaleVal = currentZoom;
         const transformStr = `scale(${isFlipped ? -scaleVal : scaleVal}, ${scaleVal})`;
         document.getElementById("viewfinder-img").style.transform = transformStr;
         document.getElementById("viewfinder-video").style.transform = transformStr;
 
-        // 更新顶部/悬浮倍率读数
-        const readout = document.getElementById("zoom-readout");
-        if (readout) readout.innerText = currentZoom.toFixed(1) + "×";
-        
         const bubble = document.getElementById("zoom-bubble");
         if (bubble) {
             bubble.innerText = currentZoom.toFixed(1) + "×";
@@ -1036,22 +1234,6 @@
                 bubble.style.opacity = 0;
             }, 1200);
         }
-
-        // 同步滑块
-        if (!fromSlider) {
-            const slider = document.getElementById("zoom-slider");
-            if (slider) slider.value = currentZoom.toFixed(1);
-        }
-
-        // 高亮对应的快捷胶囊
-        document.querySelectorAll(".zoom-btn").forEach(btn => {
-            const btnFactor = parseFloat(btn.innerText);
-            if (Math.abs(btnFactor - currentZoom) < 0.05) {
-                btn.classList.add("active");
-            } else {
-                btn.classList.remove("active");
-            }
-        });
     }
 
     function flipCamera() {
@@ -1242,6 +1424,11 @@
             reader.readAsDataURL(file);
         }
     }
+
+    // 页面加载完成后立即初始化苹果手势变焦刻度盘
+    window.addEventListener("DOMContentLoaded", () => {
+        initAppleZoomWheel();
+    });
 </script>
 
 </body>

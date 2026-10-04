@@ -28,10 +28,12 @@ public struct CameraView: View {
     @State private var activeLutName: String = "自然原画"
     private let availableLuts: [String] = ["自然原画", "落日暖调", "纯净清透", "赛博青橙", "德味黑白"]
     
-    // 对标手机摄像头变焦状态 (支持 0.5x~10.0x 连续滑动设置，精度 0.1x)
-    @State private var isZoomRulerExpanded: Bool = true
+    // 苹果原生相机同款手势刻度转盘状态 (无级滑动设置，精度 0.1x)
+    @State private var isZoomDialActive: Bool = false
+    @State private var dragStartZoom: CGFloat = 1.0
     @State private var baseZoomFactor: CGFloat = 1.0
     @State private var showZoomIndicator: Bool = false
+    @State private var autoDismissTask: DispatchWorkItem? = nil
     
     // 相册挑选状态 (支持历史照片与视频直接导入进行 AI 润色)
     @State private var selectedPhotoPickerItem: PhotosPickerItem? = nil
@@ -287,142 +289,215 @@ public struct CameraView: View {
     }
     
     // MARK: - 专业相机滑动变焦控制台 (对标原生手机摄像头，滑动精度 0.1x，支持 0.5x~10.0x 连续变焦)
+    // MARK: - 苹果原生相机同款：无级滑动刻度轮盘 (滑动精度 0.1x，滑动时展开刻度盘，松手后收回)
     private var professionalZoomControl: some View {
-        VStack(spacing: 6) {
-            // 1. 精密倍率显示与 +/- 0.1x 单步微调
-            HStack(spacing: 12) {
-                // 减少 0.1x
-                Button(action: {
-                    let generator = UISelectionFeedbackGenerator()
-                    generator.selectionChanged()
-                    cameraManager.stepZoom(by: -0.1)
-                }) {
-                    Image(systemName: "minus")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 26, height: 26)
-                        .background(Color.black.opacity(0.55))
-                        .clipShape(Circle())
-                }
-                .contentShape(Circle())
-                
-                // 当前倍率数值胶囊 (点击展开/收起精密刻度滑条)
-                Button(action: {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        isZoomRulerExpanded.toggle()
-                    }
-                }) {
-                    HStack(spacing: 4) {
-                        Text(String(format: "%.1f×", cameraManager.currentZoom))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.4))
-                        Image(systemName: isZoomRulerExpanded ? "chevron.down" : "slider.horizontal.3")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.black.opacity(0.65))
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(Color(red: 1.0, green: 0.85, blue: 0.4).opacity(0.5), lineWidth: 1)
-                    )
-                }
-                .contentShape(Capsule())
-                
-                // 增加 0.1x
-                Button(action: {
-                    let generator = UISelectionFeedbackGenerator()
-                    generator.selectionChanged()
-                    cameraManager.stepZoom(by: 0.1)
-                }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 26, height: 26)
-                        .background(Color.black.opacity(0.55))
-                        .clipShape(Circle())
-                }
-                .contentShape(Circle())
+        ZStack {
+            if isZoomDialActive {
+                // 1. 展开态：苹果原生相机无级滑动刻度轮盘 (Zoom Dial Wheel)
+                appleStyleZoomDialWheel
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                        removal: .opacity.combined(with: .scale(scale: 1.05))
+                    ))
+            } else {
+                // 2. 常态：苹果经典焦段圆圈栏 (.5, 1, 2, 3, 5)，手指左右一滑立即呼出刻度盘
+                appleStyleZoomButtonsRow
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 1.05)),
+                        removal: .opacity.combined(with: .scale(scale: 0.95))
+                    ))
             }
-            
-            // 2. 0.1x 精密滑动刻度设置条 (对标真实手机摄像头无级滚轮)
-            if isZoomRulerExpanded {
-                VStack(spacing: 4) {
-                    Slider(
-                        value: Binding(
-                            get: { Double(cameraManager.currentZoom) },
-                            set: { newValue in
-                                let rounded = CGFloat((newValue * 10.0).rounded() / 10.0)
-                                if abs(rounded - cameraManager.currentZoom) >= 0.05 {
-                                    let generator = UISelectionFeedbackGenerator()
-                                    generator.selectionChanged()
-                                    cameraManager.setZoom(factor: rounded)
-                                }
-                            }
-                        ),
-                        in: 0.5...10.0,
-                        step: 0.1
-                    )
-                    .accentColor(Color(red: 1.0, green: 0.85, blue: 0.4))
-                    .padding(.horizontal, 24)
-                    
-                    // 硬件焦段标尺指示 (超广角 -> 广角 -> 人像 -> 长焦)
-                    HStack {
-                        Text("0.5× 广角")
-                        Spacer()
-                        Text("1.0× 标准")
-                        Spacer()
-                        Text("2.0×")
-                        Spacer()
-                        Text("3.0× 人像")
-                        Spacer()
-                        Text("5.0× 特写")
-                        Spacer()
-                        Text("10.0×")
-                    }
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.55))
-                    .padding(.horizontal, 24)
-                }
-                .padding(.vertical, 6)
-                .background(Color.black.opacity(0.5))
-                .cornerRadius(12)
-                .padding(.horizontal, 20)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-            
-            // 3. 飓风相机同款：常用基准焦段瞬切胶囊组 (0.5x, 1x, 2x, 3x, 5x)
-            HStack(spacing: 12) {
-                zoomQuickButton(label: "0.5×", factor: 0.5)
-                zoomQuickButton(label: "1×", factor: 1.0)
-                zoomQuickButton(label: "2×", factor: 2.0)
-                zoomQuickButton(label: "3×", factor: 3.0)
-                zoomQuickButton(label: "5×", factor: 5.0)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 5)
-            .background(Color.black.opacity(0.4))
-            .clipShape(Capsule())
         }
+        .frame(height: 68)
     }
     
-    private func zoomQuickButton(label: String, factor: CGFloat) -> some View {
-        let isSelected = abs(cameraManager.currentZoom - factor) < 0.05
+    // 常态：苹果相机标准焦段圆形胶囊
+    private var appleStyleZoomButtonsRow: some View {
+        HStack(spacing: 12) {
+            zoomCircleButton(label: ".5", targetFactor: 0.5)
+            zoomCircleButton(label: "1", targetFactor: 1.0)
+            zoomCircleButton(label: "2", targetFactor: 2.0)
+            zoomCircleButton(label: "3", targetFactor: 3.0)
+            zoomCircleButton(label: "5", targetFactor: 5.0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Color.black.opacity(0.45))
+        .clipShape(Capsule())
+        // 苹果相机核心手势：在焦段按钮上左右滑动，立即唤起刻度盘
+        .gesture(
+            DragGesture(minimumDistance: 4)
+                .onChanged { value in
+                    autoDismissTask?.cancel()
+                    if !isZoomDialActive {
+                        dragStartZoom = cameraManager.currentZoom
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                            isZoomDialActive = true
+                        }
+                    }
+                    handleZoomWheelDrag(translationX: value.translation.width)
+                }
+                .onEnded { _ in
+                    scheduleAutoDismiss()
+                }
+        )
+    }
+
+    private func zoomCircleButton(label: String, targetFactor: CGFloat) -> some View {
+        let isSelected = abs(cameraManager.currentZoom - targetFactor) < 0.15
+        let displayText: String = {
+            if isSelected && abs(cameraManager.currentZoom - targetFactor) >= 0.05 {
+                return String(format: "%.1f", cameraManager.currentZoom)
+            }
+            return label
+        }()
+        
         return Button(action: {
             let generator = UIImpactFeedbackGenerator(style: .light)
             generator.impactOccurred()
-            cameraManager.setZoom(factor: factor)
+            withAnimation(.easeInOut(duration: 0.2)) {
+                cameraManager.setZoom(factor: targetFactor)
+            }
         }) {
-            Text(label)
-                .font(.system(size: 11, weight: isSelected ? .bold : .medium, design: .monospaced))
-                .foregroundColor(isSelected ? .black : .white)
-                .frame(width: 36, height: 26)
-                .background(isSelected ? Color(red: 1.0, green: 0.85, blue: 0.4) : Color.clear)
+            Text(displayText)
+                .font(.system(size: isSelected ? 12 : 11, weight: isSelected ? .bold : .medium, design: .rounded))
+                .foregroundColor(isSelected ? Color(red: 1.0, green: 0.85, blue: 0.4) : .white)
+                .frame(width: isSelected ? 34 : 30, height: isSelected ? 34 : 30)
+                .background(Color.black.opacity(0.5))
                 .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(isSelected ? Color(red: 1.0, green: 0.85, blue: 0.4) : Color.clear, lineWidth: 1.5)
+                )
         }
         .contentShape(Circle())
+    }
+
+    // 展开态：苹果原生相机手势刻度盘 (无级连续滑动，精度严格 0.1x)
+    private var appleStyleZoomDialWheel: some View {
+        VStack(spacing: 2) {
+            // 当前倍率大字居中读数 (苹果黄色专业字体)
+            Text(String(format: "%.1f×", cameraManager.currentZoom))
+                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.4))
+                .shadow(color: Color.black.opacity(0.8), radius: 3, x: 0, y: 1)
+            
+            // 刻度盘几何主体容器
+            ZStack(alignment: .center) {
+                // 背景微磨砂胶囊底槽
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.black.opacity(0.65))
+                    .frame(height: 42)
+                
+                // 连续光学刻度线组 (随着 currentZoom 水平平滑滚动)
+                GeometryReader { geo in
+                    let centerX = geo.size.width / 2.0
+                    let tickSpacing: CGFloat = 6.5
+                    let stepCount = Int(((cameraManager.currentZoom - 0.5) / 0.1).rounded())
+                    let offsetX = centerX - CGFloat(stepCount) * tickSpacing
+                    
+                    HStack(alignment: .bottom, spacing: tickSpacing) {
+                        ForEach(0...95, id: \.self) { idx in
+                            let val = 0.5 + Double(idx) * 0.1
+                            let isWholeNumber = abs(val.rounded() - val) < 0.01 || abs(val - 0.5) < 0.01
+                            let isHalf = abs(val * 2.0 - (val * 2.0).rounded()) < 0.01
+                            
+                            VStack(spacing: 2) {
+                                if isWholeNumber || abs(val - 0.5) < 0.01 {
+                                    Rectangle()
+                                        .fill(Color.white)
+                                        .frame(width: 1.5, height: 16)
+                                    Text(val == 0.5 ? ".5" : String(format: "%.0f", val))
+                                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                        .foregroundColor(Color.white.opacity(0.85))
+                                } else if isHalf {
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.75))
+                                        .frame(width: 1.2, height: 11)
+                                } else {
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.35))
+                                        .frame(width: 1.0, height: 7)
+                                }
+                            }
+                            .frame(width: 1.5)
+                        }
+                    }
+                    .offset(x: offsetX)
+                    .frame(height: 38, alignment: .bottom)
+                }
+                .frame(height: 38)
+                .clipped()
+                // 苹果原生两端边缘半透明虚化遮罩 (营造圆柱弧形视觉)
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: .black, location: 0.15),
+                            .init(color: .black, location: 0.85),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                
+                // 屏幕中央亮黄色对齐游标
+                VStack(spacing: 0) {
+                    Image(systemName: "arrowtriangle.down.fill")
+                        .font(.system(size: 7))
+                        .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.4))
+                    Rectangle()
+                        .fill(Color(red: 1.0, green: 0.85, blue: 0.4))
+                        .frame(width: 2, height: 18)
+                        .cornerRadius(1)
+                }
+                .allowsHitTesting(false)
+            }
+            .frame(height: 42)
+            .padding(.horizontal, 24)
+        }
+        // 在展开刻度盘上的滑动拖拽手势
+        .gesture(
+            DragGesture(minimumDistance: 1)
+                .onChanged { value in
+                    autoDismissTask?.cancel()
+                    if dragStartZoom == 0 {
+                        dragStartZoom = cameraManager.currentZoom
+                    }
+                    handleZoomWheelDrag(translationX: value.translation.width)
+                }
+                .onEnded { _ in
+                    dragStartZoom = cameraManager.currentZoom
+                    scheduleAutoDismiss()
+                }
+        )
+    }
+
+    // 拖动位移算法：每滑动 6.5pt 步进 0.1x，并激发机械触感反馈
+    private func handleZoomWheelDrag(translationX: CGFloat) {
+        let tickSpacing: CGFloat = 6.5
+        let deltaSteps = -translationX / tickSpacing
+        let targetRaw = dragStartZoom + CGFloat(deltaSteps) * 0.1
+        let clamped = max(0.5, min(10.0, (targetRaw * 10.0).rounded() / 10.0))
+        
+        if clamped != cameraManager.currentZoom {
+            let generator = UISelectionFeedbackGenerator()
+            generator.selectionChanged()
+            cameraManager.setZoom(factor: clamped)
+        }
+    }
+
+    // 手势结束后 1.5 秒自动收回为简洁圆圈
+    private func scheduleAutoDismiss() {
+        autoDismissTask?.cancel()
+        let task = DispatchWorkItem {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                isZoomDialActive = false
+            }
+        }
+        autoDismissTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: task)
     }
     
     // MARK: - 【核心按键】：✨ 灵瞳 AI 实时构图大师专属按键
