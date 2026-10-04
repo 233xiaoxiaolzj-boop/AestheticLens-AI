@@ -30,6 +30,7 @@
 		1021 /* lut_film_warm_01.png in Resources */ = {isa = PBXBuildFile; fileRef = 2021 /* lut_film_warm_01.png */; };
 		1022 /* lut_identity.png in Resources */ = {isa = PBXBuildFile; fileRef = 2022 /* lut_identity.png */; };
 		1023 /* lut_mono_contrast_04.png in Resources */ = {isa = PBXBuildFile; fileRef = 2023 /* lut_mono_contrast_04.png */; };
+		1024 /* RealtimeCompositionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2024 /* RealtimeCompositionEngine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +59,7 @@
 		2021 /* lut_film_warm_01.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lut_film_warm_01.png; sourceTree = "<group>"; };
 		2022 /* lut_identity.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lut_identity.png; sourceTree = "<group>"; };
 		2023 /* lut_mono_contrast_04.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lut_mono_contrast_04.png; sourceTree = "<group>"; };
+		2024 /* RealtimeCompositionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeCompositionEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,6 +130,7 @@
 				2009 /* CameraManager.swift */,
 				2010 /* MotionManager.swift */,
 				2011 /* VideoPlayerService.swift */,
+				2024 /* RealtimeCompositionEngine.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -265,6 +268,7 @@
 				1016 /* RetouchView.swift in Sources */,
 				1017 /* SettingsView.swift in Sources */,
 				1018 /* VideoRetouchView.swift in Sources */,
+				1024 /* RealtimeCompositionEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

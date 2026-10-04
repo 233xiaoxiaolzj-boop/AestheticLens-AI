@@ -101,7 +101,8 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 |         │   ├── `CameraManager.swift` | 文件 | **相机管线管理服务**。封装 `AVCaptureSession`，负责相机权限申请、最高画质捕获、原生多摄硬件发现、**对标手机摄像头 0.5x~10.0x 连续变焦与严格 0.1x 精度步进算法**，并向渲染器分发 `CMSampleBuffer`。 |
 |         │   ├── `MotionManager.swift` | 文件 | **CoreMotion 60Hz 姿态解算服务**。实时采集陀螺仪与加速度计，解算 Pitch/Roll 物理角度，并在绝对倾角 $<0.5^\circ$ 时发布吸附对齐状态。 |
 |         │   ├── `APIClient.swift` | 文件 | **端云通信中台客户端**。实现生产 Live API 与离线 Mock 桩的自由切换，管理 JWT 凭证与 `/health` 连通性探测；具备 15.0s 跨国网络弹性超时、401 令牌自动续发重试与网络波动自动兜底自愈机制。 |
-|         │   └── **`VideoPlayerService.swift`** | 文件 | **【REQ-13 新增】视频播放与导出管线服务**。基于 AVFoundation 驱动视频播放、毫秒级进度拖拽跳转（Scrubbing）、多关键帧异步抽取、以及 Metal 硬件加速压制导出。 |
+|         │   ├── `VideoPlayerService.swift` | 文件 | **【REQ-13 新增】视频播放与导出管线服务**。基于 AVFoundation 驱动视频播放、毫秒级进度拖拽跳转（Scrubbing）、多关键帧异步抽取、以及 Metal 硬件加速压制导出。 |
+|         │   └── **`RealtimeCompositionEngine.swift`** | 文件 | **【核心新增：AI 实时构图指挥引擎】**。对标三星 Galaxy Shot Suggestion 与谷歌 Pixel Guided Frame 的双闭环协同架构，以 60Hz 采样率与用户手机物理动作毫秒级同步，实时指挥前后左右与俯仰机位移动；当精准移动到位时瞬间触发翠绿锁定动效与 Taptic Engine 成功震颤！ |
 |         ├── **`Render/`** | 目录 | **Apple Metal GPU 实时渲染管线**。 |
 |         │   ├── `MetalRenderer.swift` | 文件 | **Metal 零拷贝片元着色渲染器**。通过 `CVMetalTextureCache` 实现相机视频流零内存拷贝上屏，锁定 60fps 满帧运行，零显存泄漏。 |
 |         │   ├── `MetalView.swift` | 文件 | **SwiftUI 桥接视图**。封装 `MTKView`，将 Metal 渲染管道无缝嵌入 SwiftUI 响应式视图树。 |
@@ -111,7 +112,7 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 |         └── **`Views/`** | 目录 | **用户界面与 HUD 视觉呈现层**。 |
 |             ├── `CameraView.swift` | 文件 | **取景器主视图**。聚合全屏相机底图、中心水平仪、AR 构图框、顶部状态微标、照片/视频模式轮播、快门、**对标苹果原生相机同款无级手势滑动刻度盘（Zoom Dial Wheel，纯手势左右滑动无级设置，滑动精度严格 0.1x，齿轮微阻尼触感震动，松手 1.5 秒自动优雅收拢）**。 |
 |             ├── `LevelGaugeView.swift` | 文件 | **动态水平仪 HUD 视图**。展示 60Hz 响应的中心十字微光准星，水平对准时呈现亮绿色并带有柔光呼吸感。 |
-|             ├── `NavigationOverlayView.swift` | 文件 | **空间机位 4 向导航与 AR 虚线框视图**。在取景器上投影金色黄金构图虚线框与黄色半透明动态胶囊建议（如“▲ 前进2步”）。 |
+|             ├── `NavigationOverlayView.swift` | 文件 | **【实时构图 HUD 呈现层】**。渲染动态黄金目标裁切框、中心目标圆环、随手机动作 60Hz 游走的灵动准星与磁吸引导线；移动到最佳位置时瞬间蜕变为荧光翠绿与脉冲光环，胶囊高亮显示“✨ 已移动到最佳构图位置！”。 |
 |             ├── `SettingsView.swift` | 文件 | **系统设置与关于视图**。展示偏好开关与隐私声明；**在版本号文本上监听连续三击手势（`count: 3`）唤出隐藏调试中台**。 |
 |             ├── `DebugSourceSheet.swift` | 文件 | **隐藏调试面板 (现场防翻车双保险)**。提供一键切换【在线云端模式】与【本地 Mock 模式】，并提供网络连通性实时状态探测。 |
 |             ├── `RetouchView.swift` | 文件 | **拍后照片专业调色工作台主视图 (REQ-12)**。提供成片高清预览、长按对比原片手势、AI 摄影大师美学诊断卡片、以及 10 个专业无损滑块微调面板。 |

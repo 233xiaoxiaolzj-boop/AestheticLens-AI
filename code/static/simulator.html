@@ -317,15 +317,54 @@
             border-radius: 12px;
             z-index: 15;
             pointer-events: none;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             display: none;
+        }
+        .ar-crop-box.locked {
+            border: 2.5px solid #10b981 !important;
+            background: rgba(16, 185, 129, 0.15) !important;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.5) !important;
+        }
+        .ar-target-ring {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            border: 2px solid #fbbf24;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: none;
+            z-index: 16;
+            transition: all 0.2s;
+        }
+        .ar-target-ring.locked {
+            border-color: #10b981 !important;
+            background: rgba(16, 185, 129, 0.25) !important;
+            box-shadow: 0 0 16px #10b981 !important;
+        }
+        .ar-live-reticle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #ffffff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: none;
+            z-index: 17;
+            box-shadow: 0 0 8px #ffffff;
+            transition: background 0.15s, box-shadow 0.15s;
+        }
+        .ar-live-reticle.locked {
+            background: #10b981 !important;
+            box-shadow: 0 0 12px #10b981 !important;
         }
         .coach-pill {
             position: absolute;
             top: 22%;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.82);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(251, 191, 36, 0.6);
             color: #fbbf24;
@@ -340,7 +379,16 @@
             z-index: 20;
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
+            transition: opacity 0.25s, transform 0.25s, border-color 0.25s, color 0.25s;
+        }
+        .coach-pill.locked {
+            border-color: #10b981 !important;
+            color: #10b981 !important;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.45) !important;
+        }
+        .shutter-btn.locked {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 24px rgba(16, 185, 129, 0.8) !important;
         }
 
         /* 变焦悬浮指示器 */
@@ -800,7 +848,7 @@
         </div>
 
         <!-- 屏幕内部 -->
-        <div class="screen" id="screen" onwheel="handleWheelZoom(event)">
+        <div class="screen" id="screen" onwheel="handleWheelZoom(event)" onmousemove="handleViewfinderMouseMove(event)">
             <!-- 背景取景画面 (图片或摄像头视频) -->
             <img class="viewfinder-media" id="viewfinder-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80" alt="取景">
             <video class="viewfinder-media" id="viewfinder-video" autoplay playsinline muted style="display:none;"></video>
@@ -830,12 +878,16 @@
                 <div class="level-center-dot"></div>
             </div>
 
-            <!-- AR 目标裁切框 -->
+            <!-- AR 目标黄金裁切框与中心目标锚圈 -->
             <div class="ar-crop-box" id="ar-crop-box"></div>
+            <div class="ar-target-ring" id="ar-target-ring"></div>
 
-            <!-- 机位空间动态胶囊 -->
+            <!-- 随镜头/鼠标 60Hz 动态游走的灵动准星 -->
+            <div class="ar-live-reticle" id="ar-live-reticle"></div>
+
+            <!-- 机位空间动态指挥胶囊 -->
             <div class="coach-pill" id="coach-pill">
-                <span>▲</span>
+                <span id="coach-icon">▲</span>
                 <span id="coach-text">前进2步 · 调整仰角 3°</span>
             </div>
 
@@ -868,10 +920,10 @@
                     </div>
                 </div>
 
-                <!-- ✨ 灵瞳 AI 智能构图专属大按钮 -->
+                <!-- ✨ 灵瞳 AI 实时构图指挥大师按键 -->
                 <button class="ai-trigger-btn" id="ai-btn" onclick="triggerAIAnalysis()">
                     <span>✨</span>
-                    <span id="ai-btn-text">AI 智能构图诊断</span>
+                    <span id="ai-btn-text">开启 AI 实时构图指挥</span>
                 </button>
 
                 <!-- 常驻 3D LUT 胶片滑轨 (秒点秒生效，大热区) -->
@@ -1265,12 +1317,95 @@
         return canvas.toDataURL("image/jpeg", 0.65).split(",")[1];
     }
 
-    // ✨ 触发真实 AI 智能构图分析 (直连云端大模型)
+    // MARK: - 实时构图引导状态机 (对标三星 Shot Suggestion 与谷歌 Guided Frame)
+    let isRealtimeGuiding = false;
+    let targetCenterNorm = { x: 0.5, y: 0.45 }; // 黄金构图目标中心
+    let targetCropNorm = { xmin: 0.15, ymin: 0.12, xmax: 0.85, ymax: 0.82 };
+    let isPositionAligned = false;
+
+    // 监听鼠标在取景器内的 60Hz 移动 (模拟用户手持手机向前后左右摇移镜头)
+    function handleViewfinderMouseMove(e) {
+        if (!isRealtimeGuiding) return;
+        const screen = document.getElementById("screen");
+        const rect = screen.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const liveReticle = document.getElementById("ar-live-reticle");
+        liveReticle.style.display = "block";
+        liveReticle.style.left = mouseX + "px";
+        liveReticle.style.top = mouseY + "px";
+
+        const targetX = targetCenterNorm.x * rect.width;
+        const targetY = targetCenterNorm.y * rect.height;
+
+        const dx = targetX - mouseX;
+        const dy = targetY - mouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        const crop = document.getElementById("ar-crop-box");
+        const ring = document.getElementById("ar-target-ring");
+        const pill = document.getElementById("coach-pill");
+        const coachText = document.getElementById("coach-text");
+        const coachIcon = document.getElementById("coach-icon");
+        const shutterBtn = document.querySelector(".shutter-btn");
+        const btnText = document.getElementById("ai-btn-text");
+
+        pill.style.opacity = 1;
+
+        // 对准门限 (距离小于 28px 判定为精准对准最佳构图)
+        if (dist < 28) {
+            if (!isPositionAligned) {
+                isPositionAligned = true;
+                crop.classList.add("locked");
+                ring.classList.add("locked");
+                liveReticle.classList.add("locked");
+                pill.classList.add("locked");
+                shutterBtn.classList.add("locked");
+                coachIcon.innerText = "✨";
+                coachText.innerText = "已移动到最佳构图位置！机位完美";
+                btnText.innerText = "最佳构图已就位 · 点击重锁";
+            }
+        } else {
+            if (isPositionAligned) {
+                isPositionAligned = false;
+                crop.classList.remove("locked");
+                ring.classList.remove("locked");
+                liveReticle.classList.remove("locked");
+                pill.classList.remove("locked");
+                shutterBtn.classList.remove("locked");
+                btnText.innerText = "AI 实时指挥中 (移动鼠标体验)";
+            }
+
+            // 实时根据偏离方向与距离指挥用户移动
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (dx > 0) {
+                    coachIcon.innerText = "▸▸";
+                    coachText.innerText = `向右平移镜头 (${Math.round(dist)}px)`;
+                } else {
+                    coachIcon.innerText = "◂◂";
+                    coachText.innerText = `向左平移镜头 (${Math.round(dist)}px)`;
+                }
+            } else {
+                if (dy > 0) {
+                    coachIcon.innerText = "▾";
+                    coachText.innerText = `压低机位俯角 (${Math.round(dist)}px)`;
+                } else {
+                    coachIcon.innerText = "▴";
+                    coachText.innerText = `抬高机位仰角 (${Math.round(dist)}px)`;
+                }
+            }
+        }
+    }
+
+    // ✨ 触发真实 AI 智能构图分析 (开启 60Hz 实时动作指挥)
     function triggerAIAnalysis() {
         const btnText = document.getElementById("ai-btn-text");
-        btnText.innerText = "Qwen-VL 深度感知中...";
+        btnText.innerText = "Qwen-VL 深度透视构图中...";
         const pill = document.getElementById("coach-pill");
         const crop = document.getElementById("ar-crop-box");
+        const ring = document.getElementById("ar-target-ring");
+        const liveReticle = document.getElementById("ar-live-reticle");
 
         const base64 = captureCurrentFrameBase64();
 
@@ -1296,48 +1431,62 @@
             })
             .then(res => res.json())
             .then(res => {
-                btnText.innerText = "AI 智能构图诊断";
+                isRealtimeGuiding = true;
+                btnText.innerText = "AI 实时指挥中 (移动鼠标体验)";
+                
+                let box = { xmin: 0.15, ymin: 0.12, xmax: 0.85, ymax: 0.82 };
+                let tip = "请跟随实时指示移动手机/鼠标";
+                
                 if (res.data && res.data.composition_guidance) {
                     const guidance = res.data.composition_guidance;
-                    document.getElementById("coach-text").innerText = "✨ " + guidance.coach_tip;
-                    pill.style.opacity = 1;
-
-                    // 投影 AR 框
-                    const box = guidance.suggested_crop_box;
-                    crop.style.display = "block";
-                    crop.style.left = (box.xmin * 100) + "%";
-                    crop.style.top = (box.ymin * 100) + "%";
-                    crop.style.width = ((box.xmax - box.xmin) * 100) + "%";
-                    crop.style.height = ((box.ymax - box.ymin) * 100) + "%";
-
+                    box = guidance.suggested_crop_box;
+                    tip = guidance.coach_tip;
                     if (res.data.filter_recommendation) {
                         selectLut(res.data.filter_recommendation.preset_name_zh);
                     }
-
-                    setTimeout(() => {
-                        pill.style.opacity = 0;
-                    }, 5000);
-                } else {
-                    document.getElementById("coach-text").innerText = "▲ 建议镜头平推2步 · 压低仰角";
-                    pill.style.opacity = 1;
-                    crop.style.display = "block";
-                    crop.style.left = "15%";
-                    crop.style.top = "18%";
-                    crop.style.width = "70%";
-                    crop.style.height = "64%";
-                    setTimeout(() => { pill.style.opacity = 0; }, 4000);
                 }
+                
+                targetCropNorm = box;
+                targetCenterNorm = {
+                    x: (box.xmin + box.xmax) / 2.0,
+                    y: (box.ymin + box.ymax) / 2.0
+                };
+                
+                // 投影 AR 黄金框与中心目标圆环
+                crop.style.display = "block";
+                crop.style.left = (box.xmin * 100) + "%";
+                crop.style.top = (box.ymin * 100) + "%";
+                crop.style.width = ((box.xmax - box.xmin) * 100) + "%";
+                crop.style.height = ((box.ymax - box.ymin) * 100) + "%";
+
+                ring.style.display = "block";
+                ring.style.left = (targetCenterNorm.x * 100) + "%";
+                ring.style.top = (targetCenterNorm.y * 100) + "%";
+
+                document.getElementById("coach-text").innerText = "已锁定最佳构图！请移动鼠标对准中心";
+                document.getElementById("coach-icon").innerText = "🎯";
+                pill.style.opacity = 1;
             })
             .catch(err => {
-                btnText.innerText = "AI 智能构图诊断";
-                document.getElementById("coach-text").innerText = "▲ 前进2步 · 调整仰角 3°";
-                pill.style.opacity = 1;
+                isRealtimeGuiding = true;
+                btnText.innerText = "AI 实时指挥中 (移动鼠标体验)";
+                
+                targetCropNorm = { xmin: 0.15, ymin: 0.15, xmax: 0.85, ymax: 0.85 };
+                targetCenterNorm = { x: 0.5, y: 0.5 };
+                
                 crop.style.display = "block";
                 crop.style.left = "15%";
-                crop.style.top = "18%";
+                crop.style.top = "15%";
                 crop.style.width = "70%";
-                crop.style.height = "64%";
-                setTimeout(() => { pill.style.opacity = 0; }, 4000);
+                crop.style.height = "70%";
+
+                ring.style.display = "block";
+                ring.style.left = "50%";
+                ring.style.top = "50%";
+
+                document.getElementById("coach-text").innerText = "已锁定最佳构图！请移动鼠标对准中心";
+                document.getElementById("coach-icon").innerText = "🎯";
+                pill.style.opacity = 1;
             });
         });
     }

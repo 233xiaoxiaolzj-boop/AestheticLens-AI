@@ -7,6 +7,7 @@ public struct CameraView: View {
     @ObservedObject var cameraManager = CameraManager.shared
     @ObservedObject var motionManager = MotionManager.shared
     @ObservedObject var apiClient = APIClient.shared
+    @ObservedObject var compositionEngine = RealtimeCompositionEngine.shared
     
     // 构图与 AI 诊断状态
     @State private var currentGuidance: CompositionGuidance? = nil
@@ -500,26 +501,50 @@ public struct CameraView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: task)
     }
     
-    // MARK: - 【核心按键】：✨ 灵瞳 AI 实时构图大师专属按键
+    // MARK: - 【核心按键】：✨ 灵瞳 AI 实时构图指挥大师按键 (一键开启 60Hz 动态动作同步与机位就位锁定)
     private var aiCompositionTriggerButton: some View {
         Button(action: {
             let generator = UIImpactFeedbackGenerator(style: .medium)
             generator.impactOccurred()
-            triggerAICompositionAnalysis(silent: false)
+            
+            if compositionEngine.state == .inactive {
+                compositionEngine.startRealtimeGuidance(cameraManager: cameraManager)
+                triggerAICompositionAnalysis(silent: true)
+            } else if compositionEngine.state == .tracking || compositionEngine.state == .aligned {
+                // 已在指挥中，点击可重新锁定场景或刷新
+                compositionEngine.fetchOptimalComposition(cameraManager: cameraManager)
+                triggerAICompositionAnalysis(silent: true)
+            } else {
+                compositionEngine.stopRealtimeGuidance()
+            }
         }) {
             HStack(spacing: 8) {
-                if isAnalyzingAI {
+                if compositionEngine.state == .analyzing || isAnalyzingAI {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .black))
                         .scaleEffect(0.8)
-                    Text("AI 构图透视中...")
+                    Text("AI 透视黄金构图中...")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.black)
+                } else if compositionEngine.state == .aligned {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.black)
+                    Text("最佳构图已就位 · 点击重锁")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.black)
+                } else if compositionEngine.state == .tracking {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.black)
+                    Text("AI 实时指挥中 · 点击刷新")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.black)
                 } else {
                     Image(systemName: "sparkles")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.black)
-                    Text("AI 智能构图诊断")
+                    Text("开启 AI 实时构图指挥")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.black)
                 }
@@ -527,14 +552,25 @@ public struct CameraView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 9)
             .background(
-                LinearGradient(
-                    colors: [Color(red: 1.0, green: 0.88, blue: 0.45), Color(red: 1.0, green: 0.72, blue: 0.25)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+                compositionEngine.state == .aligned ?
+                    LinearGradient(
+                        colors: [Color(red: 0.2, green: 1.0, blue: 0.6), Color(red: 0.0, green: 0.85, blue: 0.4)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ) :
+                    LinearGradient(
+                        colors: [Color(red: 1.0, green: 0.88, blue: 0.45), Color(red: 1.0, green: 0.72, blue: 0.25)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
             )
             .clipShape(Capsule())
-            .shadow(color: Color.yellow.opacity(0.4), radius: 6, x: 0, y: 2)
+            .shadow(
+                color: compositionEngine.state == .aligned ? Color.green.opacity(0.5) : Color.yellow.opacity(0.4),
+                radius: 6,
+                x: 0,
+                y: 2
+            )
         }
         .contentShape(Capsule())
     }
@@ -630,15 +666,29 @@ public struct CameraView: View {
             }
             .frame(maxWidth: .infinity)
             
-            // 中间：核心快门按钮 (照片全分辨率拍照 / 视频真实录像)
+            // 中间：核心快门按钮 (照片全分辨率拍照 / 视频真实录像，最佳构图锁定时光环转绿)
             Button(action: handleMainShutterAction) {
                 ZStack {
+                    if compositionEngine.isAligned {
+                        Circle()
+                            .stroke(Color(red: 0.0, green: 0.95, blue: 0.45).opacity(0.4), lineWidth: 8)
+                            .frame(width: 82, height: 82)
+                            .blur(radius: 4)
+                    }
+                    
                     Circle()
-                        .stroke(Color.white, lineWidth: 4)
+                        .stroke(
+                            compositionEngine.isAligned ? Color(red: 0.0, green: 0.95, blue: 0.45) : Color.white,
+                            lineWidth: 4
+                        )
                         .frame(width: 76, height: 76)
+                        .shadow(
+                            color: compositionEngine.isAligned ? Color.green.opacity(0.8) : Color.clear,
+                            radius: 8
+                        )
                     
                     if captureMode == 0 {
-                        // 照片模式：白圈快门
+                        // 照片模式：白圈快门 (对齐时呈现柔和微光)
                         Circle()
                             .fill(Color.white)
                             .frame(width: 62, height: 62)
