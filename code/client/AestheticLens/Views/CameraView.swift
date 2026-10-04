@@ -16,8 +16,8 @@ public struct CameraView: View {
     
     // UI 控制状态
     @State private var activeLutName: String = "自然原画"
-    @State private var currentGuidance: CompositionGuidanceData?
-    @State private var currentFilterRec: FilterRecommendationData?
+    @State private var currentGuidance: CompositionGuidance?
+    @State private var currentFilterRec: FilterRecommendation?
     @State private var isAnalyzingAI: Bool = false
     @State private var aiCoachMessage: String?
     
@@ -60,132 +60,18 @@ public struct CameraView: View {
     
     public var body: some View {
         ZStack {
-            // 背景纯黑沉浸专业基底
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // ==========================================
-                // 1. 顶部专业 HUD 状态栏
-                // ==========================================
                 topProfessionalHUD
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                     .padding(.bottom, 6)
                 
-                // ==========================================
-                // 2. 核心：标准 4:3 黄金取景器视口 (对标原相机，绝对不变形)
-                // ==========================================
-                GeometryReader { geo in
-                    let availableWidth = geo.size.width
-                    let targetHeight = availableWidth * (4.0 / 3.0)
-                    
-                    ZStack {
-                        // 相机底层硬件预览层 (标准 4:3，前置防拉伸)
-                        if cameraManager.isAuthorized {
-                            CameraPreviewView()
-                                .frame(width: availableWidth, height: targetHeight)
-                                .clipped()
-                                .contentShape(Rectangle())
-                                // 双指捏合平滑变焦
-                                .gesture(
-                                    MagnificationGesture()
-                                        .onChanged { scale in
-                                            if !showZoomIndicator {
-                                                baseZoomFactor = cameraManager.currentZoom
-                                                showZoomIndicator = true
-                                            }
-                                            let target = (baseZoomFactor * scale * 10.0).rounded() / 10.0
-                                            cameraManager.setZoom(factor: target)
-                                        }
-                                        .onEnded { _ in
-                                            baseZoomFactor = cameraManager.currentZoom
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                                                showZoomIndicator = false
-                                            }
-                                        }
-                                )
-                        } else {
-                            Color.black
-                                .frame(width: availableWidth, height: targetHeight)
-                                .overlay(
-                                    VStack(spacing: 12) {
-                                        Image(systemName: "camera.fill")
-                                            .font(.system(size: 40))
-                                            .foregroundColor(.gray)
-                                        Text("请允许相机访问权限")
-                                            .foregroundColor(.white)
-                                            .font(.subheadline)
-                                    }
-                                )
-                        }
-                        
-                        // 中层：60Hz 微光物理水平仪 (不拦截点击)
-                        LevelGaugeView()
-                            .allowsHitTesting(false)
-                        
-                        // 顶层：AR 黄金构图虚线框与 60Hz 实时动作指引
-                        NavigationOverlayView(guidance: currentGuidance)
-                            .allowsHitTesting(false)
-                        
-                        // 手势变焦放大悬浮读数
-                        if showZoomIndicator {
-                            Text(String(format: "%.1f×", cameraManager.currentZoom))
-                                .font(.system(size: 15, weight: .bold, design: .monospaced))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 6)
-                                .background(Color.black.opacity(0.75))
-                                .clipShape(Capsule())
-                                .transition(.opacity)
-                                .allowsHitTesting(false)
-                        }
-                        
-                        // 拍照曝光闪白
-                        if isFlashing {
-                            Color.white
-                                .transition(.opacity)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                    .frame(width: availableWidth, height: min(targetHeight, geo.size.height), alignment: .center)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                    )
-                }
-                .padding(.horizontal, 8)
+                viewfinderContainer
+                    .padding(.horizontal, 8)
                 
-                // ==========================================
-                // 3. 视口下方：0.1x 极速高精滑动刻度盘
-                // ==========================================
-                smoothCanvasZoomDial
-                    .padding(.top, 8)
-                    .padding(.bottom, 6)
-                
-                // ==========================================
-                // 4. 【核心按键】：✨ AI 实时构图指挥大师
-                // ==========================================
-                aiCompositionTriggerButton
-                    .padding(.bottom, 8)
-                
-                // ==========================================
-                // 5. 影视飓风同款：常驻胶片滤镜滑轨 (秒切秒生效)
-                // ==========================================
-                permanentLutSelectorRail
-                    .padding(.bottom, 10)
-                
-                // ==========================================
-                // 6. 模式滚轮 (照片 / 视频)
-                // ==========================================
-                modeSelectorBar
-                    .padding(.bottom, 12)
-                
-                // ==========================================
-                // 7. 底部专业控制底座 (相册润色、机械快门、镜头翻转)
-                // ==========================================
-                bottomControlBar
-                    .padding(.bottom, 18)
+                controlsContainer
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -210,10 +96,107 @@ public struct CameraView: View {
         }
     }
     
+    // MARK: - 4:3 视口容器
+    private var viewfinderContainer: some View {
+        GeometryReader { geo in
+            let availableWidth = geo.size.width
+            let targetHeight = availableWidth * (4.0 / 3.0)
+            
+            ZStack {
+                if cameraManager.isAuthorized {
+                    CameraPreviewView()
+                        .frame(width: availableWidth, height: targetHeight)
+                        .clipped()
+                        .contentShape(Rectangle())
+                        .gesture(
+                            MagnificationGesture()
+                                .onChanged { scale in
+                                    if !showZoomIndicator {
+                                        baseZoomFactor = cameraManager.currentZoom
+                                        showZoomIndicator = true
+                                    }
+                                    let target = (baseZoomFactor * scale * 10.0).rounded() / 10.0
+                                    cameraManager.setZoom(factor: target)
+                                }
+                                .onEnded { _ in
+                                    baseZoomFactor = cameraManager.currentZoom
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                                        showZoomIndicator = false
+                                    }
+                                }
+                        )
+                } else {
+                    Color.black
+                        .frame(width: availableWidth, height: targetHeight)
+                        .overlay(
+                            VStack(spacing: 12) {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray)
+                                Text("请允许相机访问权限")
+                                    .foregroundColor(.white)
+                                    .font(.subheadline)
+                            }
+                        )
+                }
+                
+                LevelGaugeView()
+                    .allowsHitTesting(false)
+                
+                NavigationOverlayView(guidance: currentGuidance)
+                    .allowsHitTesting(false)
+                
+                if showZoomIndicator {
+                    Text(String(format: "%.1f×", cameraManager.currentZoom))
+                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.75))
+                        .clipShape(Capsule())
+                        .transition(.opacity)
+                        .allowsHitTesting(false)
+                }
+                
+                if isFlashing {
+                    Color.white
+                        .transition(.opacity)
+                        .allowsHitTesting(false)
+                }
+            }
+            .frame(width: availableWidth, height: min(targetHeight, geo.size.height), alignment: .center)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+        }
+    }
+    
+    // MARK: - 下方操控台容器
+    private var controlsContainer: some View {
+        VStack(spacing: 0) {
+            smoothCanvasZoomDial
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+            
+            aiCompositionTriggerButton
+                .padding(.bottom, 8)
+            
+            permanentLutSelectorRail
+                .padding(.bottom, 10)
+            
+            modeSelectorBar
+                .padding(.bottom, 12)
+            
+            bottomControlBar
+                .padding(.bottom, 18)
+        }
+    }
+    
     // MARK: - 顶部专业 HUD
     private var topProfessionalHUD: some View {
         HStack(spacing: 12) {
-            // 云端大模型在线状态
             HStack(spacing: 6) {
                 Circle()
                     .fill(Color(red: 0.2, green: 0.85, blue: 0.5))
@@ -229,7 +212,6 @@ public struct CameraView: View {
             
             Spacer()
             
-            // 原生画质规格标签
             Text("48MP · RAW HDR")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(.white.opacity(0.85))
@@ -238,7 +220,6 @@ public struct CameraView: View {
                 .background(Color.white.opacity(0.1))
                 .cornerRadius(4)
             
-            // 录像秒数指示
             if cameraManager.isRecordingVideo {
                 HStack(spacing: 6) {
                     Circle()
@@ -267,30 +248,26 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 120fps 极速 Canvas 单层刻度盘 (对标原相机 0.1x 无级顺滑，零卡顿)
+    // MARK: - 120fps 极速 Canvas 单层刻度盘
     private var smoothCanvasZoomDial: some View {
         VStack(spacing: 4) {
             if isZoomDialActive {
-                // 展开态：极速单层 Canvas 刻度标尺 (GPU 极速绘制，CPU 占用率 < 1%)
                 VStack(spacing: 2) {
                     Text(String(format: "%.1f×", cameraManager.currentZoom))
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
                     
                     ZStack(alignment: .center) {
-                        // Canvas 0开销单层绘制所有刻度与数字
                         Canvas { context, size in
                             let midX = size.width / 2.0
                             let spacing: CGFloat = 8.0
                             let current = Double(cameraManager.currentZoom)
                             
-                            // 仅绘制视野范围内的几十根刻度线
                             let visibleRange = Int((size.width / 2.0) / spacing) + 4
                             let centerStep = Int((current / 0.1).rounded())
                             
                             for step in (centerStep - visibleRange)...(centerStep + visibleRange) {
                                 guard step >= 5 && step <= 150 else { continue }
-                                let val = Double(step) * 0.1
                                 let x = midX + CGFloat(step - centerStep) * spacing - CGFloat(current.truncatingRemainder(dividingBy: 0.1) / 0.1) * spacing
                                 
                                 let isMajor = (step % 10 == 0) || (step == 5)
@@ -308,7 +285,6 @@ public struct CameraView: View {
                         .frame(height: 24)
                         .padding(.horizontal, 20)
                         
-                        // 中心亮黄色指针对齐
                         VStack(spacing: 0) {
                             Image(systemName: "arrowtriangle.down.fill")
                                 .font(.system(size: 6))
@@ -323,7 +299,6 @@ public struct CameraView: View {
                     .background(Color.black.opacity(0.45))
                     .cornerRadius(8)
                     .padding(.horizontal, 24)
-                    // 连续手势拖拽
                     .gesture(
                         DragGesture(minimumDistance: 1)
                             .onChanged { value in
@@ -340,7 +315,6 @@ public struct CameraView: View {
                     )
                 }
             } else {
-                // 收起态：苹果经典快速倍率药丸 (0.5x, 1x, 2x, 3x, 5x)
                 HStack(spacing: 8) {
                     ForEach([0.5, 1.0, 2.0, 3.0, 5.0], id: \.self) { factor in
                         let isSelected = abs(cameraManager.currentZoom - CGFloat(factor)) < 0.15
@@ -368,7 +342,6 @@ public struct CameraView: View {
                 .padding(.vertical, 4)
                 .background(Color.black.opacity(0.45))
                 .clipShape(Capsule())
-                // 在按钮组上轻推滑出刻度盘
                 .gesture(
                     DragGesture(minimumDistance: 4)
                         .onChanged { value in
@@ -416,7 +389,7 @@ public struct CameraView: View {
     private var aiCompositionTriggerButton: some View {
         Button(action: {
             impactFeedback.impactOccurred()
-            if (compositionEngine.state != .inactive) {
+            if compositionEngine.state != .inactive {
                 compositionEngine.stopRealtimeGuidance()
             } else {
                 compositionEngine.startRealtimeGuidance(cameraManager: cameraManager)
@@ -446,7 +419,7 @@ public struct CameraView: View {
         .contentShape(Capsule())
     }
     
-    // MARK: - 常驻胶片 3D LUT 色彩滑轨 (秒点秒切)
+    // MARK: - 常驻胶片 3D LUT 色彩滑轨
     private var permanentLutSelectorRail: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -478,7 +451,7 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 模式选择器 (照片 / 视频)
+    // MARK: - 模式选择器
     private var modeSelectorBar: some View {
         HStack(spacing: 24) {
             Button(action: {
@@ -503,10 +476,9 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 底部核心控制栏 (相册润色、机械快门、镜头翻转)
+    // MARK: - 底部控制栏
     private var bottomControlBar: some View {
         HStack {
-            // 左侧：相册导入历史素材润色
             VStack(spacing: 3) {
                 if captureMode == 0 {
                     PhotosPicker(selection: $selectedPhotoPickerItem, matching: .images) {
@@ -539,7 +511,6 @@ public struct CameraView: View {
             }
             .frame(maxWidth: .infinity)
             
-            // 中间：机械大快门 (防抖保护)
             Button(action: handleMainShutterAction) {
                 ZStack {
                     Circle()
@@ -575,7 +546,6 @@ public struct CameraView: View {
             .disabled(cameraManager.isCapturingPhoto)
             .frame(maxWidth: .infinity)
             
-            // 右侧：镜头前后一键翻转 (防重复点按)
             VStack(spacing: 3) {
                 Button(action: {
                     guard !cameraManager.isSwitchingCamera else { return }
@@ -649,7 +619,6 @@ public struct CameraView: View {
     private func triggerAICompositionAnalysis() {
         guard let frame = cameraManager.captureLatestPreviewFrame() else { return }
         
-        // 缩放到 480px 极速多模态分析，毫秒级上传
         var payloadBase64 = "dGVzdF9iYXNlNjQ="
         let maxSide: CGFloat = 480.0
         let scale = min(maxSide / max(frame.size.width, frame.size.height), 1.0)
@@ -715,7 +684,6 @@ public struct CameraView: View {
         return String(format: "%02d:%02d", m, s)
     }
 }
-
 
 // MARK: - 视频相册传输辅助
 struct VideoTransferable: Transferable {
