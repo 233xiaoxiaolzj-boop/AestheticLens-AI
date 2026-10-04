@@ -228,3 +228,12 @@ private struct CornerBrackets: Shape {
         return path
     }
 }
+
+// MARK: - iOS 磨砂玻璃背景视图封装
+private struct BlurView: UIViewRepresentable {
+    let style: UIBlurEffect.Style
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        UIVisualEffectView(effect: UIBlurEffect(style: style))
+    }
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
+}
