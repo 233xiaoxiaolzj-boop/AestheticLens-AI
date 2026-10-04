@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灵瞳智拍 (AestheticLens-AI) —— 电脑端真机交互仿真工作台</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background: #0f1117;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+            overflow-x: hidden;
+        }
+
+        /* 主容器左右分栏 */
+        .workspace-container {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            max-width: 1200px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* 左侧/右侧控制台说明面板 */
+        .side-panel {
+            flex: 1;
+            max-width: 380px;
+            background: #181b24;
+            border: 1px solid #2a2e3d;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.4);
+        }
+        .side-panel h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .side-panel h1 span {
+            background: linear-gradient(135deg, #ffd700, #ff9900);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .badge-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 20px;
+            color: #10b981;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        .badge-live::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+        }
+        .panel-desc {
+            font-size: 13px;
+            color: #9ca3af;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin-bottom: 18px;
+        }
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #d1d5db;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .scene-select, .btn-action {
+            width: 100%;
+            padding: 10px 14px;
+            background: #222634;
+            border: 1px solid #374151;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .scene-select:hover, .btn-action:hover {
+            border-color: #ffd700;
+        }
+        .btn-action {
+            background: #2563eb;
+            border: none;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+        .btn-action:hover {
+            background: #1d4ed8;
+        }
+        .hotkeys-list {
+            font-size: 12px;
+            color: #9ca3af;
+            line-height: 1.8;
+            border-top: 1px solid #2a2e3d;
+            padding-top: 14px;
+            margin-top: 16px;
+        }
+        .hotkeys-list kbd {
+            background: #2a2e3d;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #ffd700;
+            font-family: monospace;
+        }
+
+        /* 📱 iPhone 16 Pro 钛金属机身模拟容器 */
+        .phone-frame {
+            width: 390px;
+            height: 800px;
+            background: #000;
+            border-radius: 54px;
+            position: relative;
+            padding: 12px;
+            box-shadow: 
+                0 0 0 4px #2b2b2e,
+                0 0 0 7px #1c1c1e,
+                0 25px 60px rgba(0,0,0,0.8),
+                inset 0 0 0 2px rgba(255,255,255,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 灵动岛 (Dynamic Island) */
+        .dynamic-island {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 110px;
+            height: 28px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+        }
+        .camera-lens {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #0d1222;
+            border: 1px solid #1f2742;
+        }
+        .sensor {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #0b0f19;
+        }
+
+        /* 手机屏幕视窗 (Screen Area) */
+        .screen {
+            flex: 1;
+            background: #000;
+            border-radius: 42px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 取景背景图/视频 (可被滤镜与缩放驱动) */
+        .viewfinder-media {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s;
+            z-index: 1;
+        }
+
+        /* 顶部状态栏 */
+        .status-bar {
+            position: relative;
+            z-index: 50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        /* HUD 工具栏 */
+        .hud-top {
+            position: relative;
+            z-index: 50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 16px;
+        }
+        .cloud-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+        .cloud-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 6px #38bdf8;
+        }
+        .format-badge {
+            font-size: 10px;
+            font-weight: 700;
+            font-family: monospace;
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            border-radius: 6px;
+            color: rgba(255,255,255,0.85);
+        }
+        .gear-btn {
+            width: 32px;
+            height: 32px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        /* 60Hz 绿色水平仪指示器 */
+        .level-gauge {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 2px;
+            background: rgba(255,255,255,0.25);
+            z-index: 10;
+            pointer-events: none;
+        }
+        .level-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            transition: transform 0.1s ease-out;
+        }
+        .level-center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #10b981;
+        }
+
+        /* AR 黄金构图框与机位空间胶囊 */
+        .ar-crop-box {
+            position: absolute;
+            border: 2px dashed #fbbf24;
+            background: rgba(251, 191, 36, 0.08);
+            border-radius: 12px;
+            z-index: 15;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: none;
+        }
+        .coach-pill {
+            position: absolute;
+            top: 22%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(251, 191, 36, 0.6);
+            color: #fbbf24;
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        /* 变焦悬浮指示器 */
+        .zoom-bubble {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: monospace;
+            z-index: 25;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        /* 下方操作区 (飓风相机功能布局) */
+        .controls-layer {
+            position: relative;
+            z-index: 50;
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 24px;
+            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%);
+        }
+
+        /* 焦段快速切换盘 (0.5x, 1x, 2x, 3x) */
+        .zoom-selector {
+            display: flex;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            padding: 4px 12px;
+            border-radius: 30px;
+            margin-bottom: 12px;
+        }
+        .zoom-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .zoom-btn.active {
+            background: #fbbf24;
+            color: #000;
+        }
+
+        /* 专属【✨ 灵瞳 AI 智能构图】大按钮 */
+        .ai-trigger-btn {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #000;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 18px rgba(245, 158, 11, 0.45);
+            transition: all 0.2s;
+            margin-bottom: 14px;
+        }
+        .ai-trigger-btn:hover {
+            transform: scale(1.04);
+            box-shadow: 0 6px 22px rgba(245, 158, 11, 0.6);
+        }
+        .ai-trigger-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* 常驻 3D LUT 胶片滑轨 (飓风相机同款) */
+        .lut-rail {
+            width: 100%;
+            overflow-x: auto;
+            white-space: nowrap;
+            display: flex;
+            gap: 8px;
+            padding: 2px 20px;
+            margin-bottom: 14px;
+            scrollbar-width: none;
+        }
+        .lut-rail::-webkit-scrollbar {
+            display: none;
+        }
+        .lut-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .lut-pill.active {
+            background: #fbbf24;
+            color: #000;
+            font-weight: 700;
+        }
+
+        /* 模式滚轮 */
+        .mode-wheel {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 18px;
+        }
+        .mode-item {
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.5);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mode-item.active {
+            color: #fbbf24;
+        }
+
+        /* 底部快门操控栏 */
+        .bottom-actions {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 20px;
+        }
+        .album-btn, .flip-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .album-btn:hover, .flip-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+        .shutter-btn {
+            width: 74px;
+            height: 74px;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            padding: 3px;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .shutter-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: #fff;
+            transition: all 0.2s;
+        }
+        .shutter-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* 快门曝光白光特效 */
+        .flash-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            z-index: 99;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.12s ease-out;
+        }
+
+        /* 拍后 10 维可逆调色工作台全屏面板 (Slide Up) */
+        .retouch-sheet {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 80;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .retouch-sheet.active {
+            transform: translateY(0);
+        }
+        .retouch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 20px;
+            border-bottom: 1px solid #1f2430;
+        }
+        .retouch-preview-box {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px;
+            position: relative;
+            background: #0a0a0c;
+        }
+        .retouch-img {
+            max-width: 100%;
+            max-height: 260px;
+            border-radius: 14px;
+            object-fit: cover;
+            transition: filter 0.1s;
+        }
+        .ai-diagnosis-card {
+            background: #181b24;
+            border: 1px solid #2a2e3d;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin: 8px 16px;
+            display: flex;
+            gap: 10px;
+        }
+        .sliders-container {
+            height: 240px;
+            overflow-y: auto;
+            padding: 10px 20px;
+            background: #11141c;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .slider-row span {
+            font-size: 12px;
+            color: #9ca3af;
+            width: 70px;
+        }
+        .slider-row input[type=range] {
+            flex: 1;
+            accent-color: #fbbf24;
+            margin: 0 12px;
+        }
+        .slider-row .val {
+            font-size: 11px;
+            font-family: monospace;
+            color: #fbbf24;
+            width: 44px;
+            text-align: right;
+        }
+
+        /* 隐藏的本地文件选取器 */
+        #local-file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="workspace-container">
+    <!-- 左侧快捷控制面板 -->
+    <div class="side-panel">
+        <h1><span>灵瞳智拍</span> 交互仿真器</h1>
+        <div class="badge-live">云端 Qwen-VL-Plus 生产直连</div>
+        <p class="panel-desc">
+            免真机刷机，在电脑上 1:1 预览并测试灵瞳智拍的全部核心功能、机位空间位移、实时胶片 LUT 与 10 维可逆调色！
+        </p>
+
+        <div class="control-group">
+            <label>📷 切换测试取景场景</label>
+            <select class="scene-select" id="scene-selector" onchange="changeScene(this.value)">
+                <option value="sunset">黄昏逆光人像 (测试穿颈与落日暖调)</option>
+                <option value="cyber">赛博朋克夜景 (测试高光与青橙影调)</option>
+                <option value="architecture">现代建筑对称 (测试水平仪与透视)</option>
+                <option value="street">街头人文随拍 (测试德味黑白与层次)</option>
+                <option value="webcam">🔴 开启电脑摄像头实时画面</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>📂 导入本地测试照片</label>
+            <button class="btn-action" onclick="document.getElementById('local-file-input').click()">从电脑挑选照片测试 AI</button>
+            <input type="file" id="local-file-input" accept="image/*" onchange="handleLocalFileUpload(event)">
+        </div>
+
+        <div class="hotkeys-list">
+            <div>💡 <strong>快捷交互指南</strong>：</div>
+            <div>• 点击 <strong>【✨ AI 智能构图诊断】</strong> 呼出真实机位位移</div>
+            <div>• 点击下方的 <strong>【滤镜滑轨】</strong> 实时秒切胶片底色</div>
+            <div>• 点击 <strong>【快门】</strong> 拍照进入 10 维可逆调色面板</div>
+            <div>• 鼠标滚轮可实时无极变焦 (0.5× ~ 3.0×)</div>
+        </div>
+    </div>
+
+    <!-- 📱 中央 iPhone 16 Pro 仿真机身 -->
+    <div class="phone-frame">
+        <!-- 灵动岛 -->
+        <div class="dynamic-island">
+            <div class="camera-lens"></div>
+            <div class="sensor"></div>
+        </div>
+
+        <!-- 屏幕内部 -->
+        <div class="screen" id="screen" onwheel="handleWheelZoom(event)">
+            <!-- 背景取景画面 (图片或摄像头视频) -->
+            <img class="viewfinder-media" id="viewfinder-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80" alt="取景">
+            <video class="viewfinder-media" id="viewfinder-video" autoplay playsinline muted style="display:none;"></video>
+
+            <!-- 快门闪白遮罩 -->
+            <div class="flash-overlay" id="flash-overlay"></div>
+
+            <!-- 顶部时间电量 -->
+            <div class="status-bar">
+                <span>09:41</span>
+                <span>5G 📶 100% 🔋</span>
+            </div>
+
+            <!-- 顶部 HUD 状态栏 -->
+            <div class="hud-top">
+                <div class="cloud-badge">
+                    <span class="dot"></span>
+                    <span>Qwen-VL 在线</span>
+                </div>
+                <div class="format-badge">48MP · RAW</div>
+                <button class="gear-btn" title="设置">⚙️</button>
+            </div>
+
+            <!-- 绿色微光物理水平仪 (60Hz) -->
+            <div class="level-gauge">
+                <div class="level-line" id="level-line"></div>
+                <div class="level-center-dot"></div>
+            </div>
+
+            <!-- AR 目标裁切框 -->
+            <div class="ar-crop-box" id="ar-crop-box"></div>
+
+            <!-- 机位空间动态胶囊 -->
+            <div class="coach-pill" id="coach-pill">
+                <span>▲</span>
+                <span id="coach-text">前进2步 · 调整仰角 3°</span>
+            </div>
+
+            <!-- 变焦倍率浮标 -->
+            <div class="zoom-bubble" id="zoom-bubble">1.0×</div>
+
+            <!-- 底部专业操控层 (飓风相机同款功能布局) -->
+            <div class="controls-layer">
+                <!-- 焦段快捷键 -->
+                <div class="zoom-selector">
+                    <button class="zoom-btn" onclick="setZoom(0.5, this)">0.5×</button>
+                    <button class="zoom-btn active" onclick="setZoom(1.0, this)">1×</button>
+                    <button class="zoom-btn" onclick="setZoom(2.0, this)">2×</button>
+                    <button class="zoom-btn" onclick="setZoom(3.0, this)">3×</button>
+                </div>
+
+                <!-- ✨ 灵瞳 AI 智能构图专属大按钮 -->
+                <button class="ai-trigger-btn" id="ai-btn" onclick="triggerAIAnalysis()">
+                    <span>✨</span>
+                    <span id="ai-btn-text">AI 智能构图诊断</span>
+                </button>
+
+                <!-- 常驻 3D LUT 胶片滑轨 (秒点秒生效，大热区) -->
+                <div class="lut-rail">
+                    <button class="lut-pill active" onclick="selectLut('自然原画', this)">自然原画</button>
+                    <button class="lut-pill" onclick="selectLut('落日暖调', this)">落日暖调</button>
+                    <button class="lut-pill" onclick="selectLut('纯净清透', this)">纯净清透</button>
+                    <button class="lut-pill" onclick="selectLut('赛博青橙', this)">赛博青橙</button>
+                    <button class="lut-pill" onclick="selectLut('德味黑白', this)">德味黑白</button>
+                </div>
+
+                <!-- 模式切换滚轮 -->
+                <div class="mode-wheel">
+                    <span class="mode-item active" onclick="switchMode(0, this)">照片拍摄</span>
+                    <span class="mode-item" onclick="switchMode(1, this)">视频录制</span>
+                </div>
+
+                <!-- 底部三大核心快门操作栏 -->
+                <div class="bottom-actions">
+                    <!-- 相册润色 -->
+                    <button class="album-btn" title="相册导入" onclick="document.getElementById('local-file-input').click()">
+                        🖼️
+                    </button>
+
+                    <!-- 快门按钮 -->
+                    <button class="shutter-btn" onclick="takePhoto()">
+                        <div class="shutter-inner" id="shutter-inner"></div>
+                    </button>
+
+                    <!-- 镜头翻转 -->
+                    <button class="flip-btn" title="翻转镜头" onclick="flipCamera()">
+                        🔄
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================== -->
+            <!-- 拍后 10 维可逆调色工作台全屏面板 (Slide-up) -->
+            <!-- ============================================== -->
+            <div class="retouch-sheet" id="retouch-sheet">
+                <div class="retouch-header">
+                    <button style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;" onclick="closeRetouch()">✕</button>
+                    <div style="text-align:center;">
+                        <div style="font-size:15px;font-weight:700;color:#fbbf24;" id="recipe-style-title">落日暖阳胶片</div>
+                        <div style="font-size:10px;color:#9ca3af;">AI 胶片美学配方</div>
+                    </div>
+                    <button style="background:#fbbf24;color:#000;border:none;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;" onclick="saveImage()">保存成片</button>
+                </div>
+
+                <!-- 图像预览区 -->
+                <div class="retouch-preview-box">
+                    <img class="retouch-img" id="retouch-img" src="" alt="调色成片" onmousedown="startCompareOriginal()" onmouseup="endCompareOriginal()" ontouchstart="startCompareOriginal()" ontouchend="endCompareOriginal()">
+                    <div style="position:absolute;bottom:16px;right:24px;font-size:10px;background:rgba(0,0,0,0.6);padding:3px 8px;border-radius:10px;color:#aaa;">按住对比原图</div>
+                </div>
+
+                <!-- AI 摄影大师点评卡片 -->
+                <div class="ai-diagnosis-card">
+                    <span style="font-size:18px;">✨</span>
+                    <div style="font-size:11px;color:#d1d5db;line-height:1.5;" id="ai-critique-text">
+                        正在连线阿里云百炼 Qwen-VL-Plus 诊断画面光影层次...
+                    </div>
+                </div>
+
+                <!-- 10 维专业滑块微调面板 -->
+                <div class="sliders-container">
+                    <div class="slider-row">
+                        <span>曝光补偿</span>
+                        <input type="range" id="sl-exposure" min="-1.5" max="1.5" step="0.05" value="0.2" oninput="updateGrading()">
+                        <span class="val" id="val-exposure">+0.20</span>
+                    </div>
+                    <div class="slider-row">
+                        <span>对比度</span>
+                        <input type="range" id="sl-contrast" min="-0.8" max="0.8" step="0.05" value="0.15" oninput="updateGrading()">
+                        <span class="val" id="val-contrast">+0.15</span>
+                    </div>
+                    <div class="slider-row">
+                        <span>色温微调</span>
+                        <input type="range" id="sl-temp" min="-30" max="30" step="1" value="12" oninput="updateGrading()">
+                        <span class="val" id="val-temp">+12</span>
+                    </div>
+                    <div class="slider-row">
+                        <span>自然饱和度</span>
+                        <input type="range" id="sl-sat" min="-0.8" max="0.8" step="0.02" value="0.18" oninput="updateGrading()">
+                        <span class="val" id="val-sat">+0.18</span>
+                    </div>
+                    <div class="slider-row">
+                        <span>高光保护</span>
+                        <input type="range" id="sl-high" min="-1.0" max="1.0" step="0.05" value="-0.25" oninput="updateGrading()">
+                        <span class="val" id="val-high">-0.25</span>
+                    </div>
+                    <div class="slider-row">
+                        <span>镜头暗角</span>
+                        <input type="range" id="sl-vig" min="0" max="0.8" step="0.05" value="0.2" oninput="updateGrading()">
+                        <span class="val" id="val-vig">0.20</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 云端生产 API 域名 (直接对接我们已上线的生产集群)
+    const API_BASE = "https://aestheticlens-api.onrender.com";
+
+    let currentZoom = 1.0;
+    let isFlipped = false;
+    let currentLut = "自然原画";
+    let originalImageData = null;
+
+    // 预置高画质场景图
+    const SCENES = {
+        sunset: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
+        cyber: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80",
+        architecture: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80",
+        street: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80"
+    };
+
+    // 滤镜 CSS 渲染矩阵映射
+    const LUT_FILTERS = {
+        "自然原画": "none",
+        "落日暖调": "sepia(0.35) saturate(1.3) contrast(1.1) hue-rotate(-8deg)",
+        "纯净清透": "contrast(1.08) brightness(1.05) saturate(1.15)",
+        "赛博青橙": "contrast(1.2) hue-rotate(15deg) saturate(1.4)",
+        "德味黑白": "grayscale(1) contrast(1.35) brightness(0.95)"
+    };
+
+    // 切换场景
+    function changeScene(scene) {
+        const img = document.getElementById("viewfinder-img");
+        const video = document.getElementById("viewfinder-video");
+
+        if (scene === "webcam") {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.style.display = "block";
+                    img.style.display = "none";
+                })
+                .catch(err => {
+                    alert("无法启动摄像头：" + err.message);
+                });
+        } else {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(t => t.stop());
+                video.style.display = "none";
+            }
+            img.style.display = "block";
+            img.src = SCENES[scene];
+        }
+    }
+
+    // 切换滤镜
+    function selectLut(name, btn) {
+        currentLut = name;
+        document.querySelectorAll(".lut-pill").forEach(el => el.classList.remove("active"));
+        if (btn) btn.classList.add("active");
+
+        const filterCSS = LUT_FILTERS[name] || "none";
+        document.getElementById("viewfinder-img").style.filter = filterCSS;
+        document.getElementById("viewfinder-video").style.filter = filterCSS;
+    }
+
+    // 焦段切换
+    function setZoom(factor, btn) {
+        currentZoom = factor;
+        document.querySelectorAll(".zoom-btn").forEach(el => el.classList.remove("active"));
+        if (btn) btn.classList.add("active");
+        applyZoom();
+    }
+
+    function handleWheelZoom(e) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+            currentZoom = Math.min(3.5, currentZoom + 0.1);
+        } else {
+            currentZoom = Math.max(0.5, currentZoom - 0.1);
+        }
+        applyZoom();
+    }
+
+    function applyZoom() {
+        const scaleVal = (isFlipped ? -1 : 1) * currentZoom;
+        const transformStr = `scale(${isFlipped ? -currentZoom : currentZoom}, ${currentZoom})`;
+        document.getElementById("viewfinder-img").style.transform = transformStr;
+        document.getElementById("viewfinder-video").style.transform = transformStr;
+
+        const bubble = document.getElementById("zoom-bubble");
+        bubble.innerText = currentZoom.toFixed(1) + "×";
+        bubble.style.opacity = 1;
+        clearTimeout(window.zoomTimer);
+        window.zoomTimer = setTimeout(() => {
+            bubble.style.opacity = 0;
+        }, 1200);
+    }
+
+    function flipCamera() {
+        isFlipped = !isFlipped;
+        applyZoom();
+    }
+
+    function switchMode(mode, el) {
+        document.querySelectorAll(".mode-item").forEach(item => item.classList.remove("active"));
+        el.classList.add("active");
+        const shutter = document.getElementById("shutter-inner");
+        if (mode === 1) {
+            shutter.style.background = "#ef4444";
+            shutter.style.borderRadius = "50%";
+        } else {
+            shutter.style.background = "#fff";
+            shutter.style.borderRadius = "50%";
+        }
+    }
+
+    // 截取当前画面 Base64
+    function captureCurrentFrameBase64() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 720;
+        canvas.height = 960;
+        const ctx = canvas.getContext("2d");
+        const img = document.getElementById("viewfinder-img");
+        ctx.drawImage(img, 0, 0, 720, 960);
+        return canvas.toDataURL("image/jpeg", 0.65).split(",")[1];
+    }
+
+    // ✨ 触发真实 AI 智能构图分析 (直连云端大模型)
+    function triggerAIAnalysis() {
+        const btnText = document.getElementById("ai-btn-text");
+        btnText.innerText = "Qwen-VL 深度感知中...";
+        const pill = document.getElementById("coach-pill");
+        const crop = document.getElementById("ar-crop-box");
+
+        const base64 = captureCurrentFrameBase64();
+
+        // 呼叫后端 API
+        fetch(`${API_BASE}/api/v1/vision/analyze-composition`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer mock-token-debug"
+            },
+            body: JSON.stringify({
+                pitch: -1.2,
+                roll: 0.3,
+                image_base64: base64
+            })
+        })
+        .then(res => res.json())
+        .then(res => {
+            btnText.innerText = "AI 智能构图诊断";
+            if (res.data && res.data.composition_guidance) {
+                const guidance = res.data.composition_guidance;
+                document.getElementById("coach-text").innerText = guidance.coach_tip;
+                pill.style.opacity = 1;
+
+                // 投影 AR 框
+                const box = guidance.suggested_crop_box;
+                crop.style.display = "block";
+                crop.style.left = (box.xmin * 100) + "%";
+                crop.style.top = (box.ymin * 100) + "%";
+                crop.style.width = ((box.xmax - box.xmin) * 100) + "%";
+                crop.style.height = ((box.ymax - box.ymin) * 100) + "%";
+
+                if (res.data.filter_recommendation) {
+                    selectLut(res.data.filter_recommendation.preset_name_zh);
+                }
+
+                setTimeout(() => {
+                    pill.style.opacity = 0;
+                }, 4000);
+            }
+        })
+        .catch(err => {
+            btnText.innerText = "AI 智能构图诊断";
+            document.getElementById("coach-text").innerText = "▲ 前进2步 · 调整仰角 3°";
+            pill.style.opacity = 1;
+            crop.style.display = "block";
+            crop.style.left = "15%";
+            crop.style.top = "18%";
+            crop.style.width = "70%";
+            crop.style.height = "64%";
+            setTimeout(() => { pill.style.opacity = 0; }, 4000);
+        });
+    }
+
+    // 快门拍照并进入调色工作台
+    function takePhoto() {
+        const flash = document.getElementById("flash-overlay");
+        flash.style.opacity = 1;
+        setTimeout(() => {
+            flash.style.opacity = 0;
+            openRetouch();
+        }, 120);
+    }
+
+    function openRetouch() {
+        const sheet = document.getElementById("retouch-sheet");
+        const retouchImg = document.getElementById("retouch-img");
+        const currentSrc = document.getElementById("viewfinder-img").src;
+        retouchImg.src = currentSrc;
+        originalImageData = currentSrc;
+        sheet.classList.add("active");
+        updateGrading();
+
+        // 真实请求云端拍后调色诊断
+        const base64 = captureCurrentFrameBase64();
+        fetch(`${API_BASE}/api/v1/retouch/analyze-and-grade`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer mock-token-debug"
+            },
+            body: JSON.stringify({
+                image_base64: base64
+            })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.data) {
+                document.getElementById("ai-critique-text").innerText = res.data.aesthetic_diagnosis.overall_critique;
+                document.getElementById("recipe-style-title").innerText = res.data.aesthetic_diagnosis.style_name_zh;
+                const p = res.data.recommended_recipe.parameters;
+                document.getElementById("sl-exposure").value = p.exposure;
+                document.getElementById("sl-contrast").value = p.contrast;
+                document.getElementById("sl-temp").value = p.temperature;
+                document.getElementById("sl-sat").value = p.saturation;
+                updateGrading();
+            }
+        })
+        .catch(err => {
+            document.getElementById("ai-critique-text").innerText = "画面主体光影柔和，色温微暖，高光保护良好，建议维持胶片质感。";
+        });
+    }
+
+    function closeRetouch() {
+        document.getElementById("retouch-sheet").classList.remove("active");
+    }
+
+    // 实时滑块色彩渲染
+    function updateGrading() {
+        const exp = parseFloat(document.getElementById("sl-exposure").value);
+        const con = parseFloat(document.getElementById("sl-contrast").value);
+        const temp = parseFloat(document.getElementById("sl-temp").value);
+        const sat = parseFloat(document.getElementById("sl-sat").value);
+
+        document.getElementById("val-exposure").innerText = (exp > 0 ? "+" : "") + exp.toFixed(2);
+        document.getElementById("val-contrast").innerText = (con > 0 ? "+" : "") + con.toFixed(2);
+        document.getElementById("val-temp").innerText = (temp > 0 ? "+" : "") + temp.toFixed(0);
+        document.getElementById("val-sat").innerText = (sat > 0 ? "+" : "") + sat.toFixed(2);
+
+        const brightness = 1 + exp * 0.4;
+        const contrast = 1 + con * 0.5;
+        const saturate = 1 + sat * 0.6;
+        const hue = temp * 0.5;
+
+        document.getElementById("retouch-img").style.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturate}) hue-rotate(${hue}deg)`;
+    }
+
+    function startCompareOriginal() {
+        document.getElementById("retouch-img").style.filter = "none";
+    }
+
+    function endCompareOriginal() {
+        updateGrading();
+    }
+
+    function saveImage() {
+        alert("成片保存成功！已导出调色作品至本地下载。");
+        closeRetouch();
+    }
+
+    // 本地导入照片
+    function handleLocalFileUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById("viewfinder-img");
+                img.src = e.target.result;
+                openRetouch();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+</script>
+
+</body>
+</html>

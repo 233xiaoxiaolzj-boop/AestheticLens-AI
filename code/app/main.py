@@ -234,3 +234,12 @@ static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.exists(static_path):
     app.mount("/static", StaticFiles(directory=static_path), name="static")
 
+# 7. 电脑端 1:1 免安装交互式真机仿真中台页面 (无需安装手机，电脑直接查看效果)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def desktop_simulator_html():
+    simulator_file = os.path.join(static_path, "simulator.html")
+    if os.path.exists(simulator_file):
+        with open(simulator_file, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse("<h3>AestheticLens Simulator is Loading</h3>")
+

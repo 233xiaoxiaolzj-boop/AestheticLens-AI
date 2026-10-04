@@ -32,6 +32,7 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 | ├── **`.dockerignore`** | 文件 | **Docker 构建排除名单**。过滤 iOS 代码、本地图片缓存与 pytest 临时文件，确保云端镜像体积精简与秒级构建。 |
 | ├── **`docker-compose.yml`** | 文件 | **本地容器服务编排文件**。定义端口映射、环境变量注入与 `/health` 容器健康检查探针，支持一键拉起本地开发容器。 |
 | ├── **`docker_run.ps1`** | 文件 | **Windows Docker 一键部署脚本**。专为小白打造，自动检测 Docker 引擎状态并给出引导，一键构建运行并验证连通性。 |
+| ├── **`open_pc_preview.bat`** | 文件 | **【电脑端一键即时预览脚本】**。无需打包编译、无需数据线与苹果手机，Windows 双击即可在默认浏览器中唤起 1:1 的 iPhone 16 Pro 灵瞳智拍全交互仿真器。 |
 | ├── **`requirements.txt`** | 文件 | **Python 运行依赖清单**。记录项目运行必需的第三方库（FastAPI、Uvicorn、Pydantic v2、PyJWT、HTTPX、Pillow、pytest 等）。 |
 | ├── **`.env.example`** | 文件 | **环境变量配置模板**。指引使用者安全配置阿里云百炼 API 密钥（`DASHSCOPE_API_KEY`）与随机生成的 JWT 鉴权密钥，防止敏感信息泄露进代码仓库。 |
 | ├── **`README.md`** | 文件 | **代码目录专属说明书**。简明介绍代码目录的模块划分与本地运行测试指令。 |
@@ -70,7 +71,8 @@ F:\test1\1\AI camera/ (与 F:\AI_Workspaces\AestheticLens-AI 保持实时镜像)
 | │       ├── `vision.py` | 文件 | **取景抽帧分析接口 (`POST /api/v1/vision/analyze-composition`)**。接收手机预览帧与倾角，经过 JWT 校验与滑动窗口限流后，调用 `vlm_service` 执行专家 Skill 分析。 |
 | │       ├── `retouch.py` | 文件 | **拍后调色分析接口 (`POST /api/v1/retouch/analyze-and-grade`)**。接收成片高清中间图，调用 `vlm_service` 输出美学诊断与色彩滑块配方。 |
 | │       └── `assets.py` | 文件 | **滤镜元数据同步接口 (`GET /api/v1/assets/filters`)**。向手机端下发 4 套经典胶片滤镜的配置清单。 |
-| ├── **`static/`** | 目录 | **云端静态资源托管目录**。通过 FastAPI StaticFiles 挂载，提供 3D LUT 贴图及预览缩略图的直链高速下载。 |
+| ├── **`static/`** | 目录 | **云端静态资源托管目录**。通过 FastAPI StaticFiles 挂载，提供 3D LUT 贴图及预览缩略图的直链高速下载，并提供电脑端免安装真机仿真器。 |
+| │   ├── **`simulator.html`** | 文件 | **【电脑端 1:1 免安装真机交互仿真器】**。像素级还原 iPhone 16 Pro 钛金属机身与灵动岛，直连云端大模型，支持调用电脑摄像头、实时 3D 胶片滤镜渲染、焦段缩放、AI 构图机位引导与 10 维专业无损调色工作台。 |
 | │   └── **`luts/`** | 目录 | **512x512 3D LUT 贴图库**。收纳落日余晖、纯净物产、赛博青橙、德味黑白与恒等基准贴图。 |
 | ├── **`tests/`** | 目录 | **自动化单元与端到端集成测试套件 (21/21 全绿通过)**。保证工程质量，确保每次迭代不出现功能回退。 |
 | │   ├── `conftest.py` | 文件 | **测试共享夹具**。提供 FastAPI 模拟客户端 `TestClient` 与自动生成合法测试用 Token。 |
