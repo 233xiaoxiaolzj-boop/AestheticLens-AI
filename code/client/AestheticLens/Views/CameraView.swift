@@ -248,57 +248,98 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 120fps 极速 Canvas 单层刻度盘
+    // MARK: - 苹果原生相机同款：半圆弧形旋转变焦转盘 (0.5x ~ 10.0x 无级丝滑滑动，精度 0.1x)
     private var smoothCanvasZoomDial: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             if isZoomDialActive {
+                // 展开态：苹果原生半圆弧形转盘 (放射状刻度沿着圆弧自转，0 掉帧满帧渲染)
                 VStack(spacing: 2) {
+                    // 当前倍率大字居中读数
                     Text(String(format: "%.1f×", cameraManager.currentZoom))
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .font(.system(size: 15, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                        .shadow(color: Color.black.opacity(0.8), radius: 2, x: 0, y: 1)
                     
-                    ZStack(alignment: .center) {
+                    ZStack(alignment: .top) {
+                        // 1. 半圆形物理放射刻度盘 (Canvas 单层极速 GPU 渲染)
                         Canvas { context, size in
                             let midX = size.width / 2.0
-                            let spacing: CGFloat = 8.0
+                            let radius: CGFloat = 220.0
+                            let centerY = size.height + radius - 30.0
+                            let centerAngle = -Double.pi / 2.0 // 正上方 12 点钟
+                            let deltaAngle = 1.35 * Double.pi / 180.0 // 每 0.1x 旋转 1.35度
                             let current = Double(cameraManager.currentZoom)
                             
-                            let visibleRange = Int((size.width / 2.0) / spacing) + 4
-                            let centerStep = Int((current / 0.1).rounded())
-                            
-                            for step in (centerStep - visibleRange)...(centerStep + visibleRange) {
-                                guard step >= 5 && step <= 150 else { continue }
-                                let x = midX + CGFloat(step - centerStep) * spacing - CGFloat(current.truncatingRemainder(dividingBy: 0.1) / 0.1) * spacing
+                            for step in 5...100 { // 0.5x 到 10.0x
+                                let diff = (Double(step) * 0.1 - current) / 0.1
+                                let angle = centerAngle + diff * deltaAngle
+                                let deg = angle * 180.0 / Double.pi
                                 
-                                let isMajor = (step % 10 == 0) || (step == 5)
+                                // 限制在可见半圆扇形范围内 (-90° ± 40°)
+                                guard deg >= -130.0 && deg <= -50.0 else { continue }
+                                
+                                let isMajor = (step == 5) || (step == 10) || (step == 20) || (step == 30) || (step == 50) || (step == 100)
                                 let isHalf = (step % 5 == 0) && !isMajor
                                 
-                                let lineHeight: CGFloat = isMajor ? 14.0 : (isHalf ? 9.0 : 5.0)
-                                let opacity: Double = isMajor ? 0.9 : (isHalf ? 0.6 : 0.3)
+                                let lineLength: CGFloat = isMajor ? 13.0 : (isHalf ? 8.0 : 4.5)
+                                let opacity: Double = isMajor ? 0.95 : (isHalf ? 0.65 : 0.3)
+                                
+                                let cosA = CGFloat(cos(angle))
+                                let sinA = CGFloat(sin(angle))
+                                
+                                let pOut = CGPoint(x: midX + radius * cosA, y: centerY + radius * sinA)
+                                let pIn = CGPoint(x: midX + (radius - lineLength) * cosA, y: centerY + (radius - lineLength) * sinA)
                                 
                                 var path = Path()
-                                path.move(to: CGPoint(x: x, y: size.height))
-                                path.addLine(to: CGPoint(x: x, y: size.height - lineHeight))
-                                context.stroke(path, with: .color(Color.white.opacity(opacity)), lineWidth: 1.2)
+                                path.move(to: pOut)
+                                path.addLine(to: pIn)
+                                context.stroke(path, with: .color(Color.white.opacity(opacity)), lineWidth: isMajor ? 1.4 : 1.0)
+                                
+                                // 主刻度标注倍率数字 (.5, 1, 2, 3, 5, 10)
+                                if isMajor {
+                                    let val = Double(step) * 0.1
+                                    let textStr = (step == 5) ? ".5" : String(format: "%.0f", val)
+                                    let pText = CGPoint(x: midX + (radius - lineLength - 9) * cosA, y: centerY + (radius - lineLength - 9) * sinA)
+                                    let text = Text(textStr)
+                                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                                        .foregroundColor(Color.white.opacity(0.85))
+                                    context.draw(text, at: pText)
+                                }
                             }
                         }
-                        .frame(height: 24)
-                        .padding(.horizontal, 20)
+                        .frame(height: 48)
+                        .padding(.horizontal, 16)
+                        // 左右边缘自然渐隐遮罩
+                        .mask(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0.0),
+                                    .init(color: .black, location: 0.18),
+                                    .init(color: .black, location: 0.82),
+                                    .init(color: .clear, location: 1.0)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                         
+                        // 2. 屏幕中央苹果专属明黄游标指示小三角
                         VStack(spacing: 0) {
                             Image(systemName: "arrowtriangle.down.fill")
-                                .font(.system(size: 6))
+                                .font(.system(size: 7))
                                 .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
                             Rectangle()
                                 .fill(Color(red: 1.0, green: 0.88, blue: 0.35))
-                                .frame(width: 1.5, height: 12)
+                                .frame(width: 1.5, height: 9)
                         }
+                        .padding(.top, 2)
                         .allowsHitTesting(false)
                     }
-                    .frame(height: 26)
+                    .frame(height: 50)
                     .background(Color.black.opacity(0.45))
-                    .cornerRadius(8)
-                    .padding(.horizontal, 24)
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
+                    // 连续手势拖拽
                     .gesture(
                         DragGesture(minimumDistance: 1)
                             .onChanged { value in
@@ -315,8 +356,9 @@ public struct CameraView: View {
                     )
                 }
             } else {
-                HStack(spacing: 8) {
-                    ForEach([0.5, 1.0, 2.0, 3.0, 5.0], id: \.self) { factor in
+                // 收起态：苹果原生快速焦段切换胶囊 (.5, 1, 2, 3, 5, 10)
+                HStack(spacing: 7) {
+                    ForEach([0.5, 1.0, 2.0, 3.0, 5.0, 10.0], id: \.self) { factor in
                         let isSelected = abs(cameraManager.currentZoom - CGFloat(factor)) < 0.15
                         Button(action: {
                             selectionFeedback.selectionChanged()
@@ -327,7 +369,7 @@ public struct CameraView: View {
                             Text(factor == 0.5 ? ".5" : String(format: "%.0f", factor))
                                 .font(.system(size: 11, weight: isSelected ? .bold : .medium, design: .rounded))
                                 .foregroundColor(isSelected ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
-                                .frame(width: 30, height: 30)
+                                .frame(width: 28, height: 28)
                                 .background(Color.white.opacity(isSelected ? 0.22 : 0.1))
                                 .clipShape(Circle())
                                 .overlay(
@@ -362,11 +404,13 @@ public struct CameraView: View {
         }
     }
     
+    // 拖动手势：将手指水平移动映射为转盘角度旋转，实现 0.5x ~ 10.0x 范围平滑滑动
     private func handleWheelDrag(translationX: CGFloat) {
-        let spacing: CGFloat = 8.0
-        let deltaSteps = -translationX / spacing
+        let stepSensitivity: CGFloat = 5.5 // 每 5.5pt 步进 0.1x
+        let deltaSteps = -translationX / stepSensitivity
         let target = dragStartZoom + CGFloat(deltaSteps) * 0.1
-        let clamped = max(cameraManager.minZoom, min(cameraManager.maxZoom, (target * 10.0).rounded() / 10.0))
+        // 严格锁定在 0.5x 到 10.0x 范围
+        let clamped = max(0.5, min(10.0, (target * 10.0).rounded() / 10.0))
         
         if clamped != cameraManager.currentZoom {
             selectionFeedback.selectionChanged()

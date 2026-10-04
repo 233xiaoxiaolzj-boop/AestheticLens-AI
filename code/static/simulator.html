@@ -910,11 +910,11 @@
                     <!-- 2. 展开态：苹果原生相机手势刻度盘 (手势无级拖拽，精度严格 0.1x) -->
                     <div class="zoom-wheel-view" id="zoom-wheel-view">
                         <div class="zoom-wheel-readout" id="zoom-wheel-readout">1.0×</div>
-                        <div class="zoom-wheel-stage" id="zoom-wheel-stage">
-                            <div class="zoom-wheel-track" id="zoom-wheel-track"></div>
-                            <div class="zoom-wheel-needle">
-                                <div class="triangle"></div>
-                                <div class="line"></div>
+                        <div class="zoom-wheel-stage" id="zoom-wheel-stage" style="height: 56px; border-radius: 14px; position: relative; overflow: hidden; background: rgba(0,0,0,0.65); border: 1px solid rgba(255,255,255,0.12);">
+                            <canvas id="zoom-arc-canvas" width="340" height="56" style="width: 100%; height: 100%; display: block;"></canvas>
+                            <div class="zoom-wheel-needle" style="top: 0; left: 50%; transform: translateX(-50%); position: absolute; pointer-events: none; z-index: 10;">
+                                <div class="triangle" style="border-top-color: #ffd659;"></div>
+                                <div class="line" style="background: #ffd659; width: 1.5px; height: 10px;"></div>
                             </div>
                         </div>
                     </div>
@@ -1231,7 +1231,78 @@
         }, 1500);
     }
 
+    
+    // MARK: - 苹果原生半圆弧放射状刻度盘绘制 (0.5x ~ 10.0x 无级顺滑)
+    function drawArcZoomWheel() {
+        const canvas = document.getElementById("zoom-arc-canvas");
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const midX = w / 2;
+        const radius = 220;
+        const centerY = h + radius - 32;
+        const centerAngle = -Math.PI / 2;
+        const deltaAngle = (1.35 * Math.PI) / 180;
+        const cur = currentZoom;
+
+        // 两端暗角遮罩
+        const grad = ctx.createLinearGradient(0, 0, w, 0);
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop(0.18, "rgba(255,255,255,1)");
+        grad.addColorStop(0.82, "rgba(255,255,255,1)");
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+
+        ctx.save();
+
+        for (let step = 5; step <= 100; step++) {
+            const val = step * 0.1;
+            const diff = (val - cur) / 0.1;
+            const angle = centerAngle + diff * deltaAngle;
+            const deg = (angle * 180) / Math.PI;
+
+            if (deg < -132 || deg > -48) continue;
+
+            const isMajor = (step === 5 || step === 10 || step === 20 || step === 30 || step === 50 || step === 100);
+            const isHalf = (step % 5 === 0) && !isMajor;
+
+            const len = isMajor ? 14 : (isHalf ? 9 : 5);
+            const opacity = isMajor ? 0.95 : (isHalf ? 0.6 : 0.3);
+
+            const cosA = Math.cos(angle);
+            const sinA = Math.sin(angle);
+
+            const xOut = midX + radius * cosA;
+            const yOut = centerY + radius * sinA;
+            const xIn = midX + (radius - len) * cosA;
+            const yIn = centerY + (radius - len) * sinA;
+
+            ctx.beginPath();
+            ctx.moveTo(xOut, yOut);
+            ctx.lineTo(xIn, yIn);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+            ctx.lineWidth = isMajor ? 1.5 : 1.0;
+            ctx.stroke();
+
+            if (isMajor) {
+                const label = (step === 5) ? ".5" : (step / 10).toString();
+                const xText = midX + (radius - len - 9) * cosA;
+                const yText = centerY + (radius - len - 9) * sinA + 3;
+                ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+                ctx.font = "bold 9px monospace";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(label, xText, yText);
+            }
+        }
+        ctx.restore();
+    }
+
     function updateWheelPosition() {
+        drawArcZoomWheel();
+
         const track = document.getElementById("zoom-wheel-track");
         const readout = document.getElementById("zoom-wheel-readout");
         if (readout) readout.innerText = currentZoom.toFixed(1) + "×";
