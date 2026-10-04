@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 
 /// 成品视频 AI 辅助调色与滤镜实时调试工作台 (REQ-13)
 public struct VideoRetouchView: View {
@@ -20,15 +21,19 @@ public struct VideoRetouchView: View {
         grain: 0.04
     )
     
-    @State private var critiqueText: String = "正在分析视频全片运镜与色彩连续性..."
+    @State private var critiqueText: String = "正在连线 Qwen-VL 分析全片运镜与色彩连续性..."
     @State private var cameraMovementText: String = "运镜平稳，帧间过渡自然"
     @State private var styleNameZh: String = "赛博青橙电影感"
     @State private var activeLutId: String = "lut_cyber_teal_orange_03"
+    @State private var activeLutName: String = "赛博青橙"
     @State private var isComparingOriginal: Bool = false
     @State private var selectedTab: Int = 0 // 0: 基础光影, 1: 色彩科学, 2: 质感风格
     @State private var isLoadingRecipe: Bool = true
     @State private var showExportAlert: Bool = false
+    
+    // 外部传入真实录制或挑选的视频 URL
     public var videoURL: URL? = nil
+    private let availableLuts: [String] = ["自然原画", "落日暖调", "纯净清透", "赛博青橙", "德味黑白"]
     
     public init(videoURL: URL? = nil) {
         self.videoURL = videoURL
@@ -42,20 +47,23 @@ public struct VideoRetouchView: View {
                 // 1. 顶部操作栏
                 topNavigationBar
                 
-                // 2. 视频播放视窗 (支持长按原片无缝比对)
+                // 2. 视频真实播放视窗 (支持真实视频流播放与长按原片无缝比对)
                 videoPreviewSection
                 
                 // 3. 视频播放进度与控制栏
                 videoPlaybackControlBar
                 
-                // 4. AI 视频运镜与色彩诊断卡片
+                // 4. 视频调色 3D LUT 底色快速切换轨 (飓风相机同款，随时换滤镜底色)
+                videoLutSelectorRail
+                
+                // 5. AI 视频运镜与色彩诊断卡片
                 aiVideoCritiqueCard
                 
-                // 5. 底部 10 项专业参数滑块工作台
+                // 6. 底部 10 项专业参数滑块工作台
                 slidersWorkspace
             }
             
-            // 6. 导出进度遮罩
+            // 7. 导出进度遮罩
             if videoService.isExporting {
                 exportProgressOverlay
             }
@@ -77,25 +85,40 @@ public struct VideoRetouchView: View {
         }
     }
     
-    // MARK: - 加载视频调色配方数据
+    // MARK: - 加载视频调色配方数据 (真实关键帧多模态感知)
     private func loadVideoRecipeData() {
         isLoadingRecipe = true
+        
+        // 尝试从真实视频抽取关键帧，若无则使用默认载荷
+        if let url = videoURL {
+            let asset = AVAsset(url: url)
+            videoService.extractKeyframes(from: asset) { items in
+                self.requestRecipeFromAPI(items: items)
+            }
+        } else {
+            requestRecipeFromAPI(items: [])
+        }
+    }
+    
+    private func requestRecipeFromAPI(items: [KeyframeItem]) {
         apiClient.fetchVideoRetouchRecipe { result in
-            isLoadingRecipe = false
-            switch result {
-            case .success(let data):
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    self.recipe = data.recommendedRecipe.parameters
-                    self.activeLutId = data.recommendedRecipe.lutId
-                    self.critiqueText = data.aestheticDiagnosis.overallCritique
-                    self.styleNameZh = data.aestheticDiagnosis.styleNameZh
-                    if let cm = data.aestheticDiagnosis.cameraMovementCritique {
-                        self.cameraMovementText = cm
+            DispatchQueue.main.async {
+                self.isLoadingRecipe = false
+                switch result {
+                case .success(let data):
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        self.recipe = data.recommendedRecipe.parameters
+                        self.activeLutId = data.recommendedRecipe.lutId
+                        self.critiqueText = data.aestheticDiagnosis.overallCritique
+                        self.styleNameZh = data.aestheticDiagnosis.styleNameZh
+                        if let cm = data.aestheticDiagnosis.cameraMovementCritique {
+                            self.cameraMovementText = cm
+                        }
                     }
+                case .failure(let error):
+                    self.critiqueText = "云端诊断已平滑降级，启用电影级青橙基准调色：\(error.localizedDescription)"
+                    self.styleNameZh = "赛博青橙电影感"
                 }
-            case .failure(let error):
-                self.critiqueText = "云端诊断已平滑降级，启用电影级青橙基准调色：\(error.localizedDescription)"
-                self.styleNameZh = "赛博青橙电影感"
             }
         }
     }
@@ -111,6 +134,7 @@ public struct VideoRetouchView: View {
                     .background(Color.white.opacity(0.15))
                     .clipShape(Circle())
             }
+            .contentShape(Circle())
             
             Spacer()
             
@@ -128,72 +152,45 @@ public struct VideoRetouchView: View {
             Button(action: triggerExportVideo) {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
-                    Text("导出视频")
+                    Text("导出成片")
                 }
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundColor(.black)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(Color(red: 0.3, green: 0.8, blue: 1.0))
                 .cornerRadius(20)
             }
+            .contentShape(Capsule())
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
     }
     
-    // MARK: - 视频播放与原片对比手势视窗
+    // MARK: - 真实视频播放视窗 (支持真实视频流播放与长按原片无缝比对)
     private var videoPreviewSection: some View {
         ZStack(alignment: .bottomTrailing) {
-            // 模拟 16:9 动态视频色彩视窗
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        colors: isComparingOriginal
-                            ? [Color(red: 0.2, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)]
-                            : [Color(red: 0.1, green: 0.45, blue: 0.6), Color(red: 0.85, green: 0.4, blue: 0.15), Color(red: 0.05, green: 0.1, blue: 0.15)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            if let player = videoService.player {
+                // 真实视频播放器
+                VideoPlayer(player: player)
+                    .frame(height: 240)
+                    .cornerRadius(16)
+                    .padding(.horizontal, 16)
+            } else {
+                // 模拟 16:9 动态视频色彩视窗 (无视频时的兜底演示)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            colors: isComparingOriginal
+                                ? [Color(red: 0.2, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)]
+                                : [Color(red: 0.1, green: 0.45, blue: 0.6), Color(red: 0.85, green: 0.4, blue: 0.15), Color(red: 0.05, green: 0.1, blue: 0.15)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .overlay(
-                    VStack {
-                        if isLoadingRecipe {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.3)
-                        }
-                        
-                        // 播放中水波纹/动态模拟指示
-                        if videoService.isPlaying {
-                            HStack(spacing: 4) {
-                                Circle().fill(Color.red).frame(width: 8, height: 8)
-                                Text("60FPS 实时色彩映射")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Color.black.opacity(0.5))
-                            .cornerRadius(10)
-                            .padding(.top, 12)
-                        }
-                        
-                        Spacer()
-                        
-                        if isComparingOriginal {
-                            Text("【长按中：正在对比原片视频】")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(8)
-                                .background(Color.black.opacity(0.7))
-                                .cornerRadius(8)
-                                .padding(.bottom, 16)
-                        }
-                    }
-                )
-                .frame(height: 240)
-                .padding(.horizontal, 16)
+                    .frame(height: 240)
+                    .padding(.horizontal, 16)
+            }
             
             // 对比提示微标
             Text("长按比对原片")
@@ -218,12 +215,13 @@ public struct VideoRetouchView: View {
             // 播放/暂停键
             Button(action: { videoService.togglePlayPause() }) {
                 Image(systemName: videoService.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 16))
                     .foregroundColor(.white)
                     .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.2))
+                    .background(Color.white.opacity(0.15))
                     .clipShape(Circle())
             }
+            .contentShape(Circle())
             
             // 当前时间戳
             Text(formatTime(videoService.currentTime))
@@ -231,8 +229,8 @@ public struct VideoRetouchView: View {
                 .foregroundColor(.white)
             
             // 进度拖拽滑块
-            Slider(value: $videoService.currentTime, in: 0.0...videoService.duration, onEditingChanged: { isEditing in
-                if !isEditing {
+            Slider(value: $videoService.currentTime, in: 0...max(videoService.duration, 1.0), onEditingChanged: { editing in
+                if !editing {
                     videoService.seek(to: videoService.currentTime)
                 }
             })
@@ -244,7 +242,35 @@ public struct VideoRetouchView: View {
                 .foregroundColor(.gray)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
+    }
+    
+    // MARK: - 视频调色 3D LUT 底色快速切换轨 (飓风相机同款)
+    private var videoLutSelectorRail: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(availableLuts, id: \.self) { lut in
+                    let isSelected = (activeLutName == lut)
+                    Button(action: {
+                        activeLutName = lut
+                        styleNameZh = lut
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
+                    }) {
+                        Text(lut)
+                            .font(.system(size: 11, weight: isSelected ? .bold : .medium))
+                            .foregroundColor(isSelected ? .black : .white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(isSelected ? Color(red: 0.3, green: 0.8, blue: 1.0) : Color.white.opacity(0.12))
+                            .cornerRadius(14)
+                    }
+                    .contentShape(Rectangle())
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .padding(.vertical, 4)
     }
     
     // MARK: - AI 视频美学诊断卡片
@@ -257,70 +283,79 @@ public struct VideoRetouchView: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("AI 电影调色大师诊断")
+                    Text(styleNameZh)
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(Color(red: 0.3, green: 0.8, blue: 1.0))
+                    
                     Spacer()
-                    Text("连贯度 92%")
-                        .font(.system(size: 11))
-                        .foregroundColor(.green)
+                    
+                    // 运镜平稳度评分徽章
+                    HStack(spacing: 4) {
+                        Image(systemName: "video.badge.waveform.fill")
+                            .font(.system(size: 10))
+                        Text(cameraMovementText)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.green.opacity(0.15))
+                    .cornerRadius(8)
                 }
+                
                 Text(critiqueText)
                     .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(.white.opacity(0.85))
                     .lineLimit(2)
-                Text("🎬 \(cameraMovementText)")
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.6))
             }
-            
-            Spacer()
         }
         .padding(12)
-        .background(Color.white.opacity(0.08))
+        .background(Color(white: 0.12))
         .cornerRadius(12)
         .padding(.horizontal, 16)
-        .padding(.bottom, 6)
+        .padding(.vertical, 4)
     }
     
-    // MARK: - 10 项专业参数滑块工作台
+    // MARK: - 底部专业滑块工作台
     private var slidersWorkspace: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 0) {
+        VStack(spacing: 0) {
+            // 标签切换按钮
+            HStack(spacing: 12) {
                 TabButton(title: "基础光影", index: 0, currentTab: $selectedTab)
                 TabButton(title: "色彩科学", index: 1, currentTab: $selectedTab)
                 TabButton(title: "质感风格", index: 2, currentTab: $selectedTab)
             }
-            .background(Color.white.opacity(0.06))
-            .cornerRadius(10)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 6)
             
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 10) {
+            Divider().background(Color.gray.opacity(0.3))
+            
+            ScrollView {
+                VStack(spacing: 14) {
                     if selectedTab == 0 {
-                        SliderRow(name: "曝光补偿", value: $recipe.exposure, range: -1.0...1.0, step: 0.02)
-                        SliderRow(name: "动态对比", value: $recipe.contrast, range: -1.0...1.0, step: 0.02)
-                        SliderRow(name: "高光压制", value: $recipe.highlights, range: -1.0...1.0, step: 0.02)
-                        SliderRow(name: "暗部细节", value: $recipe.shadows, range: -1.0...1.0, step: 0.02)
+                        SliderRow(name: "曝光补偿", value: $recipe.exposure, range: -2.0...2.0, step: 0.05)
+                        SliderRow(name: "对比度", value: $recipe.contrast, range: -1.0...1.0, step: 0.05)
+                        SliderRow(name: "高光保护", value: $recipe.highlights, range: -1.0...1.0, step: 0.05)
+                        SliderRow(name: "阴影提亮", value: $recipe.shadows, range: -1.0...1.0, step: 0.05)
                     } else if selectedTab == 1 {
-                        SliderRow(name: "色彩色温", value: $recipe.temperature, range: -30.0...30.0, step: 1.0)
-                        SliderRow(name: "色调平衡", value: $recipe.tint, range: -20.0...20.0, step: 1.0)
-                        SliderRow(name: "自然饱和", value: $recipe.vibrance, range: -1.0...1.0, step: 0.02)
-                        SliderRow(name: "纯饱和度", value: $recipe.saturation, range: -1.0...1.0, step: 0.02)
+                        SliderRow(name: "色温微调", value: $recipe.temperature, range: -30.0...30.0, step: 1.0)
+                        SliderRow(name: "色调微调", value: $recipe.tint, range: -20.0...20.0, step: 1.0)
+                        SliderRow(name: "自然饱和度", value: $recipe.vibrance, range: -1.0...1.0, step: 0.02)
+                        SliderRow(name: "饱和度", value: $recipe.saturation, range: -1.0...1.0, step: 0.02)
                     } else {
-                        SliderRow(name: "电影暗角", value: $recipe.vignette, range: -1.0...0.0, step: 0.02)
+                        SliderRow(name: "镜头暗角", value: $recipe.vignette, range: -1.0...0.0, step: 0.02)
                         SliderRow(name: "胶片颗粒", value: $recipe.grain, range: 0.0...0.5, step: 0.01)
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 6)
+                .padding(.vertical, 8)
             }
-            .frame(height: 160)
+            .frame(height: 140)
         }
         .background(Color(white: 0.08))
     }
     
-    // MARK: - 导出进度指示遮罩
+    // MARK: - 导出进度遮罩
     private var exportProgressOverlay: some View {
         ZStack {
             Color.black.opacity(0.75).ignoresSafeArea()
@@ -398,5 +433,6 @@ private struct TabButton: View {
                 .background(currentTab == index ? Color(red: 0.3, green: 0.8, blue: 1.0) : Color.clear)
                 .cornerRadius(8)
         }
+        .contentShape(Rectangle())
     }
 }

@@ -12,8 +12,8 @@ public final class VideoPlayerService: ObservableObject {
     @Published public var duration: Double = 15.0
     @Published public var isExporting: Bool = false
     @Published public var exportProgress: Double = 0.0
+    @Published public var player: AVPlayer?
     
-    private var player: AVPlayer?
     private var timeObserverToken: Any?
     
     public init() {}
