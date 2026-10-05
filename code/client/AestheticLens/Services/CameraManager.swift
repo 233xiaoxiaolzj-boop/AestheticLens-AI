@@ -342,6 +342,10 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
     }
     
     // MARK: - 拍照 (48MP 超清直出)
+    public func takePhoto(completion: @escaping (UIImage?) -> Void) {
+        capturePhoto(completion: completion)
+    }
+    
     public func capturePhoto(completion: @escaping (UIImage?) -> Void) {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }

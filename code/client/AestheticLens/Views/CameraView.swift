@@ -145,7 +145,7 @@ public struct CameraView: View {
         .onAppear {
             cameraManager.checkPermissions()
             cameraManager.startSession()
-            motionManager.startUpdates()
+            motionManager.startDeviceMotionUpdates()
             MetalRenderer.shared.applyPreset(isLutFilterEnabled ? activeLutName : "00-自然原画")
         }
     }
@@ -199,20 +199,12 @@ public struct CameraView: View {
                 }
                 
                 // 姿态水平仪 (0度金色吸附)
-                LevelGaugeView(
-                    roll: motionManager.roll,
-                    pitch: motionManager.pitch,
-                    isLevel: motionManager.isLevel
-                )
-                .allowsHitTesting(false)
+                LevelGaugeView()
+                    .allowsHitTesting(false)
                 
                 // AI 构图智能导引线层 (按需唤出)
-                NavigationOverlayView(
-                    guidance: currentGuidance,
-                    filterRec: currentFilterRec,
-                    isRealtimeActive: compositionEngine.isRealtimeActive
-                )
-                .allowsHitTesting(false)
+                NavigationOverlayView(guidance: currentGuidance)
+                    .allowsHitTesting(false)
                 
                 // 原生触控对焦金黄色呼吸框
                 if showFocusRing, let pt = focusPoint {
@@ -404,27 +396,25 @@ public struct CameraView: View {
             // AI 实时构图指挥按钮 (按需开启，无人物智能风光建议)
             Button(action: {
                 impactFeedback.impactOccurred()
-                if compositionEngine.isRealtimeActive {
-                    compositionEngine.stopRealtimeAnalysis()
+                if compositionEngine.state != .inactive {
+                    compositionEngine.stopRealtimeGuidance()
                     currentGuidance = nil
                     currentFilterRec = nil
                 } else {
-                    compositionEngine.startRealtimeAnalysis { guidance, filterRec in
-                        self.currentGuidance = guidance
-                        self.currentFilterRec = filterRec
-                    }
+                    compositionEngine.startRealtimeGuidance(cameraManager: cameraManager)
                 }
             }) {
+                let isEngineActive = (compositionEngine.state != .inactive)
                 HStack(spacing: 5) {
-                    Image(systemName: compositionEngine.isRealtimeActive ? "sparkles.rectangle.stack.fill" : "sparkles")
+                    Image(systemName: isEngineActive ? "sparkles.rectangle.stack.fill" : "sparkles")
                         .font(.system(size: 12))
-                    Text(compositionEngine.isRealtimeActive ? "AI 构图中" : "AI 构图")
+                    Text(isEngineActive ? "AI 构图中" : "AI 构图")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundColor(compositionEngine.isRealtimeActive ? .black : .white)
+                .foregroundColor(isEngineActive ? .black : .white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(compositionEngine.isRealtimeActive ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.12))
+                .background(isEngineActive ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.12))
                 .clipShape(Capsule())
             }
         }
@@ -634,7 +624,11 @@ public struct CameraView: View {
         guard let currentImage = cameraManager.captureLatestPreviewFrame() else { return }
         
         isAnalyzingAI = true
-        apiClient.analyzeFrameRealtime(image: currentImage) { result in
+        apiClient.fetchCompositionGuidance(
+            image: currentImage,
+            pitch: motionManager.pitchDegrees,
+            roll: motionManager.rollDegrees
+        ) { result in
             DispatchQueue.main.async {
                 self.isAnalyzingAI = false
                 switch result {
