@@ -624,10 +624,11 @@ public struct CameraView: View {
         guard let currentImage = cameraManager.captureLatestPreviewFrame() else { return }
         
         isAnalyzingAI = true
+        let base64 = currentImage.jpegData(compressionQuality: 0.6)?.base64EncodedString() ?? "dGVzdF9iYXNlNjQ="
         apiClient.fetchCompositionGuidance(
-            image: currentImage,
             pitch: motionManager.pitchDegrees,
-            roll: motionManager.rollDegrees
+            roll: motionManager.rollDegrees,
+            imageBase64: base64
         ) { result in
             DispatchQueue.main.async {
                 self.isAnalyzingAI = false
