@@ -6,11 +6,16 @@ import CoreMedia
 import Combine
 
 /// AVFoundation 工业级专业相机管理引擎
-/// 对标苹果原生相机与影视飓风相机架构：
+/// 对标苹果原生相机与影视飓风专业架构：
+/// - 48MP / 24MP 硬件全像素原生输出 (maxPhotoDimensions)
+/// - 苹果原生 Deep Fusion 与 Smart HDR 多帧画质深度优先 (.quality)
+/// - Display P3 (.P3_D65) 广色域 ISP 色彩引擎直通
+/// - 硬件级连续自动对焦、连续测光、自动白平衡与弱光增强
+/// - 原生级轻触屏幕精准对焦与测光联动 (Tap-to-Focus)
 /// - 线程安全、防重复点击、防连续快速点击死锁
-/// - 硬件硬件平滑无级变焦与 60Hz 软件节流
+/// - 硬件平滑无级变焦与 30Hz 软件节流
 /// - 前后置全传感器原生 4:3 比例对齐与前置无畸变镜像
-/// - 纯实时轻量视频帧缓存（彻底杜绝后台调用物理拍照引起的快门锁死）
+/// - 实时轻量视频帧缓存（彻底杜绝后台调用物理拍照引起的快门锁死）
 public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate, AVCaptureFileOutputRecordingDelegate {
     public static let shared = CameraManager()
     
@@ -85,7 +90,7 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
-    // MARK: - 初始配置 Pipeline
+    // MARK: - 初始配置 Pipeline (工业级原生画质全开)
     private func setupSession() {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
@@ -121,6 +126,9 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             self.currentDeviceInput = input
             self.currentCameraDevice = camera
             
+            // 硬件镜头属性深度调校 (原生清晰度、宽色域、连续自动聚焦与曝光)
+            self.optimizeCameraHardware(camera)
+            
             let minFactor = camera.minAvailableVideoZoomFactor
             let maxFactor = min(camera.maxAvailableVideoZoomFactor, 15.0)
             DispatchQueue.main.async {
@@ -143,10 +151,19 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             // 配置方向与镜像
             self.configureConnection(for: self.videoOutput.connection(with: .video), position: self.currentPosition)
             
-            // 配置全像素照片输出
+            // 配置全像素照片输出 (画质核心升级：全分辨率 + Deep Fusion / Smart HDR 多帧画质优先)
             if self.captureSession.canAddOutput(self.photoOutput) {
                 self.captureSession.addOutput(self.photoOutput)
                 self.photoOutput.isHighResolutionCaptureEnabled = true
+                self.photoOutput.maxPhotoQualityPrioritization = .quality
+                
+                // 适配 iOS 16+ 4800 万像素 / 2400 万像素硬件全尺寸捕获
+                if #available(iOS 16.0, *) {
+                    let supportedDims = camera.activeFormat.supportedMaxPhotoDimensions
+                    if let highestDim = supportedDims.max(by: { $0.width * $0.height < $1.width * $1.height }) {
+                        self.photoOutput.maxPhotoDimensions = highestDim
+                    }
+                }
             }
             
             // 配置文件录像输出
@@ -166,7 +183,70 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
-    // MARK: - 配置连接方向与前置镜像 (彻底解决前置摄像头比例与反向问题)
+    // MARK: - 硬件镜头原生光学与 ISP 深度优化 (画质对标 iPhone 原生相机)
+    private func optimizeCameraHardware(_ camera: AVCaptureDevice) {
+        do {
+            try camera.lockForConfiguration()
+            
+            // 1. 锁定连续自动对焦 (锐利清晰成像基石)
+            if camera.isFocusModeSupported(.continuousAutoFocus) {
+                camera.focusMode = .continuousAutoFocus
+            }
+            // 2. 锁定连续自动曝光 (精准光影阶调)
+            if camera.isExposureModeSupported(.continuousAutoExposure) {
+                camera.exposureMode = .continuousAutoExposure
+            }
+            // 3. 锁定连续自动白平衡 (还原真实色彩)
+            if camera.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+                camera.whiteBalanceMode = .continuousAutoWhiteBalance
+            }
+            // 4. 开启暗光画质增强 (Low Light Boost)
+            if camera.isLowLightBoostSupported {
+                camera.automaticallyEnablesLowLightBoostWhenAvailable = true
+            }
+            // 5. 广色域 Display P3 硬件直通 (色彩通透艳丽，告别发暗发灰)
+            if camera.activeFormat.supportedColorSpaces.contains(.P3_D65) {
+                camera.activeColorSpace = .P3_D65
+            }
+            // 6. 开启自动对焦范围限制与平滑变焦支持
+            if camera.isAutoFocusRangeRestrictionSupported {
+                camera.autoFocusRangeRestriction = .none
+            }
+            
+            camera.unlockForConfiguration()
+        } catch {
+            print("[CameraManager] optimizeCameraHardware 失败: \(error)")
+        }
+    }
+    
+    // MARK: - 屏幕轻触对焦与测光 (Tap-to-Focus 对标苹果原生交互)
+    public func focusAndExpose(at devicePoint: CGPoint) {
+        sessionQueue.async { [weak self] in
+            guard let self = self, let camera = self.currentCameraDevice else { return }
+            do {
+                try camera.lockForConfiguration()
+                
+                // 设置聚焦中心点 (0.0 ~ 1.0)
+                if camera.isFocusPointOfInterestSupported && camera.isFocusModeSupported(.autoFocus) {
+                    camera.focusPointOfInterest = devicePoint
+                    camera.focusMode = .autoFocus
+                }
+                
+                // 设置测光中心点 (0.0 ~ 1.0)
+                if camera.isExposurePointOfInterestSupported && camera.isExposureModeSupported(.autoExpose) {
+                    camera.exposurePointOfInterest = devicePoint
+                    camera.exposureMode = .autoExpose
+                }
+                
+                camera.isSubjectAreaChangeMonitoringEnabled = true
+                camera.unlockForConfiguration()
+            } catch {
+                print("[CameraManager] focusAndExpose 失败: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - 统一连接配置 (修复前置自拍镜像变形与方向)
     private func configureConnection(for connection: AVCaptureConnection?, position: AVCaptureDevice.Position) {
         guard let connection = connection else { return }
         if connection.isVideoOrientationSupported {
@@ -178,36 +258,43 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
-    // MARK: - 极速丝滑变焦 (硬件锁保护 + 60Hz 动态节流，100% 杜绝队列阻塞卡死)
+    // MARK: - 硬件平滑变焦 (带 30Hz 智能节流防抖，彻底消除主线程与硬件锁卡顿)
     public func setZoom(factor: CGFloat) {
-        let roundedFactor = (factor * 10.0).rounded() / 10.0
+        let clamped = max(minZoom, min(factor, maxZoom))
         
-        // 主线程状态立即同步更新，保证 UI 界面与数字读数 0 延迟响应
         DispatchQueue.main.async {
-            self.currentZoom = roundedFactor
+            self.currentZoom = clamped
         }
         
         let now = CACurrentMediaTime()
-        pendingZoomFactor = roundedFactor
-        
-        // 节流写入硬件，消除高频手势下对 AVCaptureDevice 的并发重入与锁阻塞
-        if now - lastZoomUpdateTime > zoomThrottleInterval {
+        if now - lastZoomUpdateTime >= zoomThrottleInterval {
             lastZoomUpdateTime = now
-            applyPendingZoom()
+            applyZoomDirectly(clamped)
+        } else {
+            pendingZoomFactor = clamped
+            let delay = zoomThrottleInterval - (now - lastZoomUpdateTime)
+            sessionQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self = self, let target = self.pendingZoomFactor else { return }
+                self.pendingZoomFactor = nil
+                self.lastZoomUpdateTime = CACurrentMediaTime()
+                self.applyZoomDirectly(target)
+            }
         }
     }
     
-    private func applyPendingZoom() {
-        guard let target = pendingZoomFactor else { return }
+    private func applyZoomDirectly(_ target: CGFloat) {
         sessionQueue.async { [weak self] in
-            guard let self = self, let device = self.currentCameraDevice else { return }
-            let clamped = max(self.minZoom, min(target, self.maxZoom))
+            guard let self = self, let camera = self.currentCameraDevice else { return }
             do {
-                try device.lockForConfiguration()
-                device.videoZoomFactor = clamped
-                device.unlockForConfiguration()
+                try camera.lockForConfiguration()
+                let targetFactor = max(camera.minAvailableVideoZoomFactor, min(target, camera.maxAvailableVideoZoomFactor))
+                if camera.isRampingVideoZoom {
+                    camera.cancelVideoZoomRamp()
+                }
+                camera.videoZoomFactor = targetFactor
+                camera.unlockForConfiguration()
             } catch {
-                // 硬件忙碌时静默跳过，保护主队列
+                // 忽略频繁滑动的轻微争抢
             }
         }
     }
@@ -241,6 +328,9 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
                 self.captureSession.addInput(newInput)
                 self.currentDeviceInput = newInput
                 self.currentCameraDevice = camera
+                
+                // 同样为切换后的新镜头进行画质深度调校
+                self.optimizeCameraHardware(camera)
                 
                 let minFactor = camera.minAvailableVideoZoomFactor
                 let maxFactor = min(camera.maxAvailableVideoZoomFactor, newPosition == .front ? 3.0 : 15.0)
@@ -287,7 +377,7 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
-    // MARK: - 极速安全原生拍照 (彻底杜绝连续点击卡死)
+    // MARK: - 极速安全原生拍照 (高解析力 48MP/24MP + Deep Fusion 深度画质优先)
     public func takePhoto(completion: @escaping (UIImage?) -> Void) {
         guard !isCapturingPhoto else {
             // 当前已有照片正在捕获中，丢弃多余并发请求，保护主管道
@@ -307,9 +397,15 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             }
             self.photoCaptureCompletion = completion
             let settings = AVCapturePhotoSettings()
+            
+            // 开启高分辨率
             settings.isHighResolutionPhotoEnabled = true
-            if self.photoOutput.maxPhotoQualityPrioritization == .quality {
-                settings.photoQualityPrioritization = .quality
+            // 激活最高画质多帧合成 (苹果 Deep Fusion 与 Smart HDR)
+            settings.photoQualityPrioritization = .quality
+            
+            // iOS 16+ 锁定全像素维度 (48MP / 24MP)
+            if #available(iOS 16.0, *) {
+                settings.maxPhotoDimensions = self.photoOutput.maxPhotoDimensions
             }
             
             // 对齐拍照连接的前置镜像状态

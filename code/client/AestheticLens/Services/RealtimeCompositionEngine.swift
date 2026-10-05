@@ -103,6 +103,7 @@ public final class RealtimeCompositionEngine: ObservableObject {
         isAligned = false
         currentTip = ""
         alignmentProgress = 0.0
+        alignedFrameCount = 0
         hasTriggeredLockHaptic = false
     }
     
@@ -147,7 +148,7 @@ public final class RealtimeCompositionEngine: ObservableObject {
                         )
                         self.targetPitch = self.motionManager.pitchDegrees + (guidance.targetPitchAdjustmentDeg ?? 0.0)
                         self.state = .tracking
-                        self.currentTip = "已锁定最佳构图！请跟随实时指示移动手机"
+                        self.currentTip = guidance.coachTip
                     case .failure:
                         // 本地黄金对称/三分法保底
                         self.targetCropBox = CropBox(ymin: 0.15, xmin: 0.15, ymax: 0.85, xmax: 0.85)

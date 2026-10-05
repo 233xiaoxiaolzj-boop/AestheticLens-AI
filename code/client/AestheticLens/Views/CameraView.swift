@@ -43,6 +43,12 @@ public struct CameraView: View {
     @State private var baseZoomFactor: CGFloat = 1.0
     @State private var showZoomIndicator: Bool = false
     
+    // 原生级轻触对焦与点测光状态
+    @State private var focusPoint: CGPoint? = nil
+    @State private var showFocusRing: Bool = false
+    @State private var focusRingScale: CGFloat = 1.35
+    @State private var focusDismissTask: DispatchWorkItem?
+    
     // 预热震动反馈器 (避免高频分配内存引起卡顿)
     private let selectionFeedback = UISelectionFeedbackGenerator()
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -108,6 +114,9 @@ public struct CameraView: View {
                         .frame(width: availableWidth, height: targetHeight)
                         .clipped()
                         .contentShape(Rectangle())
+                        .onTapGesture { location in
+                            handleTapToFocus(at: location, in: CGSize(width: availableWidth, height: targetHeight))
+                        }
                         .gesture(
                             MagnificationGesture()
                                 .onChanged { scale in
@@ -145,6 +154,15 @@ public struct CameraView: View {
                 
                 NavigationOverlayView(guidance: currentGuidance)
                     .allowsHitTesting(false)
+                
+                // 原生对焦测光黄色方框动画 (Tap-to-Focus)
+                if showFocusRing, let pt = focusPoint {
+                    FocusRingView()
+                        .scaleEffect(focusRingScale)
+                        .position(pt)
+                        .transition(.opacity)
+                        .allowsHitTesting(false)
+                }
                 
                 if showZoomIndicator {
                     Text(String(format: "%.1f×", cameraManager.currentZoom))
@@ -435,6 +453,10 @@ public struct CameraView: View {
             impactFeedback.impactOccurred()
             if compositionEngine.state != .inactive {
                 compositionEngine.stopRealtimeGuidance()
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    currentGuidance = nil
+                    aiCoachMessage = nil
+                }
             } else {
                 compositionEngine.startRealtimeGuidance(cameraManager: cameraManager)
                 triggerAICompositionAnalysis()
@@ -660,6 +682,33 @@ public struct CameraView: View {
     }
     
     // MARK: - 触发 AI 场景感知 (零等待轻量预览帧抽样，绝不调用物理拍照快门)
+    
+    // MARK: - 原生级轻触对焦与点测光 (Tap-to-Focus)
+    private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        let normX = max(0.0, min(1.0, location.x / size.width))
+        let normY = max(0.0, min(1.0, location.y / size.height))
+        let devicePoint = CGPoint(x: normY, y: 1.0 - normX)
+        cameraManager.focusAndExpose(at: devicePoint)
+        
+        focusDismissTask?.cancel()
+        focusPoint = location
+        focusRingScale = 1.35
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+            showFocusRing = true
+            focusRingScale = 1.0
+        }
+        selectionFeedback.selectionChanged()
+        
+        let task = DispatchWorkItem {
+            withAnimation(.easeOut(duration: 0.3)) {
+                showFocusRing = false
+            }
+        }
+        focusDismissTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3, execute: task)
+    }
+
     private func triggerAICompositionAnalysis() {
         guard let frame = cameraManager.captureLatestPreviewFrame() else { return }
         
@@ -741,6 +790,22 @@ struct VideoTransferable: Transferable {
             let targetURL = tempDir.appendingPathComponent(UUID().uuidString + ".mov")
             try FileManager.default.copyItem(at: receivedData.file, to: targetURL)
             return Self(url: targetURL)
+        }
+    }
+}
+
+
+/// 苹果原生相机风格的对焦与测光黄色方框
+private struct FocusRingView: View {
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .stroke(Color(red: 1.0, green: 0.85, blue: 0.2), lineWidth: 1.2)
+                .frame(width: 60, height: 60)
+            
+            Circle()
+                .fill(Color(red: 1.0, green: 0.85, blue: 0.2))
+                .frame(width: 4, height: 4)
         }
     }
 }

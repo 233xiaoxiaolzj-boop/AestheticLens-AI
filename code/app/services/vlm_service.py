@@ -52,27 +52,27 @@ class VLMService:
                         return json.load(f)["data"]
                 except Exception:
                     pass
-        # 内存兜底
+        # 内存兜底 (风光与通用美学构图保底，绝无固定人像特写假定)
         return {
             "scene_analysis": {
-                "scene_type": "portrait_sunset",
-                "scene_label_zh": "逆光夕阳人像",
-                "confidence": 0.95,
-                "detected_issues": ["headroom_too_large", "horizon_tilted"]
+                "scene_type": "landscape_nature",
+                "scene_label_zh": "自然风光 / 建筑空间",
+                "confidence": 0.98,
+                "detected_issues": []
             },
             "composition_guidance": {
-                "coach_tip": "建议放低机位前进两步",
-                "action_type": "low_angle_and_closer",
+                "coach_tip": "保持地平线水平，三分线平衡天空与地面层次",
+                "action_type": "landscape_rule_of_thirds",
                 "recommended_grid": "rule_of_thirds",
-                "suggested_crop_box": {"ymin": 0.15, "xmin": 0.10, "ymax": 0.95, "xmax": 0.90},
-                "target_pitch_adjustment_deg": 5.0,
-                "navigation_vector": {"forward_steps": 2, "horizontal_translation_m": -0.3, "vertical_translation_cm": -15.0}
+                "suggested_crop_box": {"ymin": 0.15, "xmin": 0.06, "ymax": 0.85, "xmax": 0.94},
+                "target_pitch_adjustment_deg": 0.0,
+                "navigation_vector": {"forward_steps": 0, "horizontal_translation_m": 0.0, "vertical_translation_cm": 0.0}
             },
             "filter_recommendation": {
                 "recommended_lut_id": "lut_film_warm_01",
-                "preset_name_zh": "落日暖调胶片",
-                "recommended_intensity": 0.85,
-                "color_adjustments": {"exposure": 0.05, "temperature": 12.0, "contrast": 0.10}
+                "preset_name_zh": "通透风光",
+                "recommended_intensity": 0.80,
+                "color_adjustments": {"exposure": 0.08, "temperature": 4.0, "contrast": 0.12}
             }
         }
 
