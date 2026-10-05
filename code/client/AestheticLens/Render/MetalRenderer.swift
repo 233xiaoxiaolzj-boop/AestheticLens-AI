@@ -88,18 +88,23 @@ public final class MetalRenderer: NSObject, MTKViewDelegate {
     }
     
     /// 切换预设滤镜 (支持自然原画与预置胶片)
-    public func applyPreset(_ presetName: String) {
-        if presetName == "自然原画" || presetName.lowercased() == "natural" {
+        public func applyPreset(_ presetName: String) {
+        if presetName == "自然原画" || presetName.lowercased() == "natural" || presetName.lowercased() == "raw" {
             self.lutTexture = nil
             return
         }
         let fileName: String
         switch presetName {
-        case "落日暖调": fileName = "lut_film_warm_01"
-        case "纯净清透": fileName = "lut_clean_bright_02"
-        case "赛博青橙": fileName = "lut_cyber_teal_orange_03"
-        case "德味黑白": fileName = "lut_mono_contrast_04"
-        default: fileName = "lut_film_warm_01"
+        case "暖金电影", "落日暖调", "经典胶片":
+            fileName = "lut_film_warm_01"
+        case "富士冷萃", "清透日系", "纯净清透":
+            fileName = "lut_clean_bright_02"
+        case "赛博青橙", "赛博朋克":
+            fileName = "lut_cyber_teal_orange_03"
+        case "徕卡黑白", "黑白高反", "德味黑白":
+            fileName = "lut_mono_contrast_04"
+        default:
+            fileName = "lut_film_warm_01"
         }
         if let url = Bundle.main.url(forResource: fileName, withExtension: "png") {
             loadLUT(from: url)

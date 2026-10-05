@@ -56,10 +56,10 @@ public struct CameraView: View {
     // 胶片预设
     private let availableLuts: [(name: String, tag: String, color: Color)] = [
         ("自然原画", "RAW", Color.gray),
-        ("经典胶片", "KODAK", Color(red: 1.0, green: 0.6, blue: 0.2)),
-        ("清透日系", "FUJI", Color(red: 0.4, green: 0.85, blue: 0.7)),
-        ("赛博朋克", "TEAL", Color(red: 0.2, green: 0.8, blue: 1.0)),
-        ("黑白高反差", "BW", Color.white)
+        ("暖金电影", "WARM", Color(red: 1.0, green: 0.65, blue: 0.2)),
+        ("富士冷萃", "FUJI", Color(red: 0.35, green: 0.85, blue: 0.75)),
+        ("赛博青橙", "TEAL", Color(red: 0.15, green: 0.8, blue: 1.0)),
+        ("徕卡黑白", "LEICA", Color.white)
     ]
     
     public init() {}
