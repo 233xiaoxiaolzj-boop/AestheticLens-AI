@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>美瞳机</string>
+	<string>AestheticLens</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>美瞳机</string>
+	<string>AestheticLens</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
@@ -25,15 +25,15 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>美瞳机需要使用摄像头以提供 120fps 实时取景、AI 构图与电影胶片滤镜渲染。</string>
+	<string>AestheticLens requires camera access to provide 120fps real-time viewfinder, AI composition and cinematic film filters.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>美瞳机需要访问麦克风以录制带环境立体声音效的 60fps 电影感视频。</string>
+	<string>AestheticLens requires microphone access to record 60fps cinematic video with stereo audio.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>美瞳机需要使用运动传感器以提供实时防抖与水平仪校准。</string>
+	<string>AestheticLens requires motion sensors for real-time leveling and stabilization.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>美瞳机需要向相册保存拍摄的带滤镜视频与高清照片。</string>
+	<string>AestheticLens requires permission to save photos and videos to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>美瞳机需要访问相册以存储和浏览拍摄的高清照片与 60fps 电影视频。</string>
+	<string>AestheticLens requires photo library access to save and view captured 60fps videos and high-res photos.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiredDeviceCapabilities</key>

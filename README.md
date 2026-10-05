@@ -1,4 +1,4 @@
-# AestheticLens-AI (美瞳机) 工业级专业摄影与电影录制系统
+# AestheticLens 工业级专业摄影与电影录制系统
 
 > **当前版本**：`v2.5.0 全面结构性重构版`  
 > **核心架构**：Apple 原生 Metal 3D LUT GPU 实时渲染管线 + 120fps ProMotion 高刷生态 + 60fps 电影级实时胶片滤镜录制直出 + 端侧 Vision 智能构图诊断  

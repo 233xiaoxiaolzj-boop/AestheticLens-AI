@@ -189,7 +189,7 @@ README 目录索引漏掉第三份文档；架构篇无版本表头；PRD v1.0.0
 ## 五、给 Antigravity 的启动指令（直接粘贴使用）
 
 ```text
-你接手 AestheticLens-AI（灵瞳智拍）项目。先通读 README.md 与 docs/ 下全部文档，
+你接手 AestheticLens-AI（AestheticLens）项目。先通读 README.md 与 docs/ 下全部文档，
 再精读 docs/文档审计报告与Antigravity执行指令.md——它是你的唯一任务书，与旧文档冲突时以它为准。
 按 TO-01 → TO-07 顺序完成 Phase 0（文档修复 + 契约冻结，截止 2026-10-05），
 随后执行 TO-08 → TO-09 → TO-10。TO-05 默认执行方案 A（11 周）。

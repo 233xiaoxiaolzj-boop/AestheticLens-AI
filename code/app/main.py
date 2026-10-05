@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger("AestheticLensApp")
 
 PROJECT_DESCRIPTION_ZH = """
-### 🚀 灵瞳智拍 (AestheticLens-AI) 端云协同微服务工作台
+### 🚀 AestheticLens (AestheticLens-AI) 端云协同微服务工作台
 
 基于端云协同架构与 Metal 实时渲染技术打造的智能摄影构图与拍后调色相机后端中台。
 
@@ -56,7 +56,7 @@ TAGS_METADATA = [
 ]
 
 app = FastAPI(
-    title="AestheticLens-AI (灵瞳智拍) —— 云端视觉微服务工作台",
+    title="AestheticLens-AI (AestheticLens) —— 云端视觉微服务工作台",
     description=PROJECT_DESCRIPTION_ZH,
     version="2.0.0",
     openapi_tags=TAGS_METADATA,

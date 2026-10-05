@@ -24,7 +24,7 @@ public struct SettingsView: View {
                 
                 Section(footer: 
                     VStack(spacing: 8) {
-                        Text("灵瞳智拍 AestheticLens-AI")
+                        Text("AestheticLens AestheticLens-AI")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
