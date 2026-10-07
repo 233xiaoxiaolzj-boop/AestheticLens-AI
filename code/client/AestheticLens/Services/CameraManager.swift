@@ -6,7 +6,11 @@ import CoreVideo
 import Photos
 
 /// 工业级专业全栈相机硬件与流媒体调度管理器
-/// 完美支持 120fps 取景生态、60fps 胶片滤镜视频直出录制、48MP 原生画质与触控对焦
+/// 核心突破：
+/// 1. 变焦倍率与 iPhone 原生相机 1:1 绝对对齐 (通过 switchOverVideoZoomFactors 物理映射主摄与超广角)
+/// 2. 横屏摄影与录像自适应支持 (底层写入方向自适应 landscapeLeft / landscapeRight)
+/// 3. 画幅比例严格匹配 (拍照 4:3，视频 16:9，杜绝拉伸变形)
+/// 4. 60fps 电影级硬编码视频直存相册
 public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate {
     public static let shared = CameraManager()
     
@@ -15,11 +19,16 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
     @Published public var isAudioAuthorized: Bool = false
     @Published public var isRunning: Bool = false
     @Published public var currentPosition: AVCaptureDevice.Position = .back
+    
+    // UI 显示层倍率 (0.5x ~ 10.0x，完全对标苹果原生相机)
     @Published public var currentZoom: CGFloat = 1.0
     @Published public var minZoom: CGFloat = 0.5
     @Published public var maxZoom: CGFloat = 10.0
     @Published public var isCapturingPhoto: Bool = false
     @Published public var isSwitchingCamera: Bool = false
+    
+    // 当前物理设备朝向 (用于照片和 60fps 视频写入方向锁定)
+    @Published public var deviceOrientation: AVCaptureVideoOrientation = .portrait
     
     // 60fps 电影级实时录像状态
     @Published public var isRecordingVideo: Bool = false
@@ -47,14 +56,14 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
     private var videoRecorder: FilteredVideoRecorder?
     private var pixelBufferPool: CVPixelBufferPool?
     
-    // 最新一帧缓冲 (用于 AI 视觉实时分析，零开销)
+    // 最新一帧缓冲 (用于 AI 视觉实时分析)
     private let frameBufferLock = NSLock()
     private var latestVideoPixelBuffer: CVPixelBuffer?
     
     // 变焦平滑防抖限流
     private var pendingZoomFactor: CGFloat?
     private var lastZoomUpdateTime: TimeInterval = 0
-    private let zoomThrottleInterval: TimeInterval = 0.033
+    private let zoomThrottleInterval: TimeInterval = 0.02
     
     // 传递给 Metal 渲染器的 SampleBuffer 回调
     public var onFrameCaptured: ((CMSampleBuffer) -> Void)?
@@ -62,6 +71,31 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
     public override init() {
         super.init()
         checkPermissions()
+    }
+    
+    // MARK: - 物理镜头主摄基准倍率计算 (解决 1x 变成 0.5x 的核心关键)
+    public var baseMainLensZoomFactor: CGFloat {
+        guard let device = currentCameraDevice else { return 1.0 }
+        // 检查多摄系统的物理镜头切换点
+        let switchovers = device.virtualDeviceSwitchOverVideoZoomFactors
+        if let firstSwitch = switchovers.first as? CGFloat, firstSwitch > 1.0 {
+            return firstSwitch // iPhone 11~16 Pro 上通常为 2.0 (即硬件 2.0x 才是物理 1x 广角主摄)
+        }
+        return 1.0
+    }
+    
+    /// 将 UI 倍率 (0.5, 1.0, 2.0, 3.0) 映射为底层物理硬件 ZoomFactor
+    private func mapUIToHardwareZoom(_ uiZoom: CGFloat) -> CGFloat {
+        guard let device = currentCameraDevice else { return uiZoom }
+        let base = baseMainLensZoomFactor
+        let hwZoom: CGFloat
+        if base > 1.0 {
+            // 设备拥有超广角镜头 (0.5x 对应硬件 1.0，1.0x 对应硬件 base，3.0x 对应 hardware base * 3.0)
+            hwZoom = base * uiZoom
+        } else {
+            hwZoom = uiZoom
+        }
+        return max(device.minAvailableVideoZoomFactor, min(hwZoom, device.maxAvailableVideoZoomFactor))
     }
     
     // MARK: - 权限检查与初始化
@@ -96,14 +130,14 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             guard let self = self else { return }
             self.captureSession.beginConfiguration()
             
-            // 默认采用高画质预设
+            // 采用高画质预设
             if self.captureSession.canSetSessionPreset(.photo) {
                 self.captureSession.sessionPreset = .photo
             } else if self.captureSession.canSetSessionPreset(.high) {
                 self.captureSession.sessionPreset = .high
             }
             
-            // 1. 摄像头输入配置
+            // 1. 摄像头输入配置 (优先选择三摄/双摄虚拟设备以支持 0.5x~10x 完整变焦)
             let discovery = AVCaptureDevice.DiscoverySession(
                 deviceTypes: [.builtInTripleCamera, .builtInDualWideCamera, .builtInDualCamera, .builtInWideAngleCamera],
                 mediaType: .video,
@@ -121,15 +155,16 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             self.currentCameraDevice = camera
             self.optimizeCameraHardware(camera)
             
-            let minFactor = camera.minAvailableVideoZoomFactor
-            let maxFactor = min(camera.maxAvailableVideoZoomFactor, 15.0)
+            // 配置初始 UI 倍率为原生 1.0x 主摄
             DispatchQueue.main.async {
-                self.minZoom = min(minFactor, 0.5)
-                self.maxZoom = max(maxFactor, 10.0)
-                self.currentZoom = max(1.0, minFactor)
+                self.minZoom = 0.5
+                self.maxZoom = 10.0
+                self.currentZoom = 1.0
             }
+            // 将硬件镜头物理对齐到 1.0x 真实主摄
+            self.applyHardwareZoom(self.mapUIToHardwareZoom(1.0), on: camera)
             
-            // 2. 麦克风音频输入配置 (录制 60fps 电影声音)
+            // 2. 麦克风音频输入配置
             if let audioDevice = AVCaptureDevice.default(for: .audio),
                let aInput = try? AVCaptureDeviceInput(device: audioDevice),
                self.captureSession.canAddInput(aInput) {
@@ -137,7 +172,7 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
                 self.currentAudioInput = aInput
             }
             
-            // 3. 实时视频输出 (送往 Metal 取景与录像硬编码)
+            // 3. 实时视频输出 (送往 Metal 120fps 取景与录像硬编码)
             self.videoOutput.videoSettings = [
                 kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
             ]
@@ -176,7 +211,7 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
-    // MARK: - 硬件镜头光学 ISP 调教
+    // MARK: - 硬件镜头调教与 60fps 锁定
     private func optimizeCameraHardware(_ camera: AVCaptureDevice) {
         do {
             try camera.lockForConfiguration()
@@ -192,7 +227,6 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             if camera.isLowLightBoostSupported {
                 camera.automaticallyEnablesLowLightBoostWhenAvailable = true
             }
-            // 锁定 60fps 支持
             lockFrameRateTo60IfPossible(on: camera)
             camera.unlockForConfiguration()
         } catch {
@@ -212,15 +246,36 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             let duration = CMTime(value: 1, timescale: Int32(min(60.0, range.maxFrameRate)))
             camera.activeVideoMinFrameDuration = duration
             camera.activeVideoMaxFrameDuration = duration
-            print("[CameraManager] 成功配置采集帧率为 60fps")
         }
     }
     
-    // MARK: - 连接镜像与方向
+    private func applyHardwareZoom(_ hwFactor: CGFloat, on camera: AVCaptureDevice) {
+        do {
+            try camera.lockForConfiguration()
+            let safe = max(camera.minAvailableVideoZoomFactor, min(hwFactor, camera.maxAvailableVideoZoomFactor))
+            camera.videoZoomFactor = safe
+            camera.unlockForConfiguration()
+        } catch {
+            print("[CameraManager] 硬件初始变焦配置失败: \(error)")
+        }
+    }
+    
+    // MARK: - 连接镜像与方向自适应 (横屏拍摄支持)
+    public func updateDeviceOrientation(_ orientation: AVCaptureVideoOrientation) {
+        DispatchQueue.main.async { self.deviceOrientation = orientation }
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.configureConnection(for: self.videoOutput.connection(with: .video), position: self.currentPosition)
+            if let photoConn = self.photoOutput.connection(with: .video) {
+                self.configureConnection(for: photoConn, position: self.currentPosition)
+            }
+        }
+    }
+    
     private func configureConnection(for connection: AVCaptureConnection?, position: AVCaptureDevice.Position) {
         guard let connection = connection else { return }
         if connection.isVideoOrientationSupported {
-            connection.videoOrientation = .portrait
+            connection.videoOrientation = self.deviceOrientation
         }
         if connection.isVideoMirroringSupported {
             connection.automaticallyAdjustsVideoMirroring = false
@@ -245,7 +300,7 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
-    // MARK: - 镜头翻转 (平滑无感)
+    // MARK: - 镜头翻转
     public func switchCamera() {
         guard !isSwitchingCamera else { return }
         DispatchQueue.main.async { self.isSwitchingCamera = true }
@@ -283,14 +338,13 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             }
             self.captureSession.commitConfiguration()
             
-            let minF = newCamera.minAvailableVideoZoomFactor
-            let maxF = min(newCamera.maxAvailableVideoZoomFactor, 10.0)
             DispatchQueue.main.async {
-                self.minZoom = min(minF, 0.5)
-                self.maxZoom = max(maxF, 5.0)
-                self.currentZoom = max(1.0, minF)
+                self.minZoom = (newPosition == .front) ? 1.0 : 0.5
+                self.maxZoom = (newPosition == .front) ? 3.0 : 10.0
+                self.currentZoom = 1.0
                 self.isSwitchingCamera = false
             }
+            self.applyHardwareZoom(self.mapUIToHardwareZoom(1.0), on: newCamera)
         }
     }
     
@@ -310,19 +364,20 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
                 }
                 device.unlockForConfiguration()
             } catch {
-                print("[CameraManager] 触控对焦配置失败: \(error)")
+                print("[CameraManager] 触控对焦失败: \(error)")
             }
         }
     }
     
-    // MARK: - 变焦倍率调节
+    // MARK: - 变焦倍率调节 (与 iPhone 原生相机 1:1 对齐)
     public func setZoom(factor: CGFloat) {
         let clamped = max(minZoom, min(factor, maxZoom))
-        DispatchQueue.main.async { self.currentZoom = clamped }
+        DispatchQueue.main.async { self.currentZoom = (clamped * 10).rounded() / 10 }
         
         sessionQueue.async { [weak self] in
             guard let self = self, let device = self.currentCameraDevice else { return }
-            self.pendingZoomFactor = clamped
+            let hwTarget = self.mapUIToHardwareZoom(clamped)
+            self.pendingZoomFactor = hwTarget
             let now = CACurrentMediaTime()
             guard (now - self.lastZoomUpdateTime) >= self.zoomThrottleInterval else { return }
             self.lastZoomUpdateTime = now
@@ -365,7 +420,7 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
-    // MARK: - 最新一帧提取 (用于 AI 构图分析)
+    // MARK: - 最新一帧提取 (用于全景 AI 探景)
     public func captureLatestPreviewFrame() -> UIImage? {
         frameBufferLock.lock()
         defer { frameBufferLock.unlock() }
@@ -374,11 +429,20 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
         let context = CIContext(options: [.useSoftwareRenderer: false])
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
-        let orientation: UIImage.Orientation = (currentPosition == .front) ? .leftMirrored : .right
+        
+        // 根据当前设备物理方向决定预览帧渲染朝向
+        let orientation: UIImage.Orientation
+        if self.deviceOrientation == .landscapeLeft {
+            orientation = (currentPosition == .front) ? .downMirrored : .up
+        } else if self.deviceOrientation == .landscapeRight {
+            orientation = (currentPosition == .front) ? .upMirrored : .down
+        } else {
+            orientation = (currentPosition == .front) ? .leftMirrored : .right
+        }
         return UIImage(cgImage: cgImage, scale: 1.0, orientation: orientation)
     }
     
-    // MARK: - 60fps 电影级胶片滤镜视频录制直出 (所见即所得)
+    // MARK: - 60fps 电影级胶片滤镜视频录制直出 (支持横竖屏自适应)
     public func startRecordingVideo(completion: @escaping (URL?) -> Void) {
         sessionQueue.async { [weak self] in
             guard let self = self, !self.isRecordingVideo else { return }
@@ -387,15 +451,18 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             let tempDir = FileManager.default.temporaryDirectory
             let outputURL = tempDir.appendingPathComponent("Film_\(UUID().uuidString).mov")
             
-            // 初始化 60fps 录制引擎 (1080x1920 高码率)
-            let recorder = FilteredVideoRecorder(outputURL: outputURL, videoSize: CGSize(width: 1080, height: 1920), is60fps: true)
+            // 根据方向决定视频输出分辨率 (横屏 1920x1080，竖屏 1080x1920)
+            let isLandscape = (self.deviceOrientation == .landscapeLeft || self.deviceOrientation == .landscapeRight)
+            let videoSize = isLandscape ? CGSize(width: 1920, height: 1080) : CGSize(width: 1080, height: 1920)
+            
+            let recorder = FilteredVideoRecorder(outputURL: outputURL, videoSize: videoSize, is60fps: true)
             guard recorder.start() else {
                 DispatchQueue.main.async { completion(nil) }
                 return
             }
             
             self.videoRecorder = recorder
-            self.setupPixelBufferPool(width: 1080, height: 1920)
+            self.setupPixelBufferPool(width: Int(videoSize.width), height: Int(videoSize.height))
             
             DispatchQueue.main.async {
                 self.isRecordingVideo = true
@@ -467,7 +534,6 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
                 self.latestVideoPixelBuffer = pixelBuffer
                 frameBufferLock.unlock()
                 
-                // 实时录制分支：GPU 3D LUT 上色后写入 60fps 视频流
                 if self.isRecordingVideo, let recorder = self.videoRecorder {
                     let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
                     if let targetBuffer = self.allocateTargetBuffer() {
@@ -482,7 +548,6 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             }
             self.onFrameCaptured?(sampleBuffer)
         } else if output == self.audioOutput {
-            // 音频数据流直通写入
             if self.isRecordingVideo, let recorder = self.videoRecorder {
                 recorder.appendAudioSampleBuffer(sampleBuffer)
             }
@@ -524,7 +589,7 @@ public final class FilteredVideoRecorder {
     private var sessionStarted = false
     private let writeQueue = DispatchQueue(label: "ai.aestheticlens.videoWriterQueue", qos: .userInitiated)
     
-    public init(outputURL: URL, videoSize: CGSize = CGSize(width: 1080, height: 1920), is60fps: Bool = true) {
+    public init(outputURL: URL, videoSize: CGSize, is60fps: Bool = true) {
         self.outputURL = outputURL
         self.videoSize = videoSize
         self.is60fps = is60fps
@@ -539,7 +604,6 @@ public final class FilteredVideoRecorder {
             return false
         }
         
-        // 视频压缩参数: 25Mbps 恒定 60fps
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: Int(videoSize.width),
@@ -565,7 +629,6 @@ public final class FilteredVideoRecorder {
             self.videoInput = vInput
         }
         
-        // 音频压缩参数: AAC 48kHz 立体声
         var acl = AudioChannelLayout()
         bzero(&acl, MemoryLayout<AudioChannelLayout>.size)
         acl.mChannelLayoutTag = kAudioChannelLayoutTag_Stereo

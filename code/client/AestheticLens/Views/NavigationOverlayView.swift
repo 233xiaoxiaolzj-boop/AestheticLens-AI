@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 空间机位 4D 实时 AR 构图对齐 HUD (对标三星 Shot Suggestion 与谷歌 Guided Frame)
-/// 严格遵守用户交互规范：未点击 AI 实时构图指挥时 100% 纯净隐身，点击开启后才唤出 AR 空间框线与实时指令胶囊
+/// 空间机位 4D 实时 AR 构图对齐 HUD (对标 Doka 相机实拍构图减法与黄金取景框)
+/// 未点击 AI 实时构图指挥时 100% 纯净隐身，点击开启后唤出 AR 空间框线、推荐焦段与实时指令
 public struct NavigationOverlayView: View {
     public let guidance: CompositionGuidance?
     @ObservedObject private var engine = RealtimeCompositionEngine.shared
@@ -9,7 +9,6 @@ public struct NavigationOverlayView: View {
     
     // 对准时呼吸特效
     @State private var pulseScale: CGFloat = 1.0
-    @State private var glowOpacity: Double = 0.5
     
     public init(guidance: CompositionGuidance? = nil) {
         self.guidance = guidance
@@ -20,100 +19,131 @@ public struct NavigationOverlayView: View {
             let w = proxy.size.width
             let h = proxy.size.height
             
-            // 判断是否实时引导中 (严格门控：仅在引擎处于激活跟踪/锁定状态时呈现，彻底杜绝开机常驻固定死板提示)
             let isRealtimeActive = (engine.state != .inactive)
             
             if isRealtimeActive {
                 let crop = engine.targetCropBox
                 let isLocked = engine.isAligned
                 
-                let boxW = (crop.xmax - crop.xmin) * w
-                let boxH = (crop.ymax - crop.ymin) * h
+                let boxW = max((crop.xmax - crop.xmin) * w, 80)
+                let boxH = max((crop.ymax - crop.ymin) * h, 80)
                 let boxCenterX = (crop.xmin + crop.xmax) / 2.0 * w
                 let boxCenterY = (crop.ymin + crop.ymax) / 2.0 * h
                 
                 ZStack {
                     // ==========================================
-                    // 1. AR 黄金构图目标框 (未对准时金色虚线，对准时翠绿实线加粗并伴随外发光脉冲)
+                    // 1. AR 黄金电影取景框 (Cinema Frame)
                     // ==========================================
                     ZStack {
-                        // 锁定状态外发光脉冲
+                        // 锁定状态外发光光晕
                         if isLocked {
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(
-                                    Color(red: 0.0, green: 0.95, blue: 0.45).opacity(0.35),
-                                    lineWidth: 8
+                                    Color(red: 0.0, green: 0.95, blue: 0.45).opacity(0.4),
+                                    lineWidth: 6
                                 )
-                                .blur(radius: 6)
+                                .blur(radius: 5)
                                 .frame(width: boxW, height: boxH)
                                 .scaleEffect(pulseScale)
-                                .animation(
-                                    Animation.easeInOut(duration: 0.9).repeatForever(autoreverses: true),
-                                    value: pulseScale
-                                )
+                                .onAppear {
+                                    withAnimation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                                        pulseScale = 1.04
+                                    }
+                                }
                         }
                         
-                        // 构图建议目标框
+                        // 黄金局部裁剪框 (未锁定时金色呼吸框，锁定时翠绿实线)
                         RoundedRectangle(cornerRadius: 10)
                             .stroke(
-                                isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45) : Color(red: 1.0, green: 0.85, blue: 0.3).opacity(0.85),
+                                isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45) : Color(red: 1.0, green: 0.85, blue: 0.35).opacity(0.85),
                                 style: StrokeStyle(
                                     lineWidth: isLocked ? 2.5 : 1.5,
-                                    dash: isLocked ? [] : [7, 5]
+                                    dash: isLocked ? [] : [6, 4]
                                 )
                             )
                             .frame(width: boxW, height: boxH)
                         
-                        // 四角专业摄影取景锚点 (L型标尺)
+                        // 四角电影级 L 型标尺
                         CornerBrackets(width: boxW, height: boxH, isLocked: isLocked)
                             .stroke(
                                 isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45) : Color.white.opacity(0.9),
                                 lineWidth: 2.5
                             )
+                        
+                        // 推荐焦段与场景识别胶囊 (挂在框上方)
+                        VStack {
+                            HStack(spacing: 6) {
+                                Text(engine.sceneTypeZh)
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.black)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45) : Color(red: 1.0, green: 0.85, blue: 0.35))
+                                    .cornerRadius(4)
+                                
+                                Text(String(format: "推荐 %.1f×", engine.recommendedZoom))
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.white)
+                                
+                                if engine.isCloudAI {
+                                    Text("云端大模型")
+                                        .font(.system(size: 8, weight: .medium))
+                                        .foregroundColor(Color(white: 0.8))
+                                } else {
+                                    Text("视觉神经引擎")
+                                        .font(.system(size: 8, weight: .medium))
+                                        .foregroundColor(Color(white: 0.8))
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.black.opacity(0.75))
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.8))
+                            .offset(y: -boxH / 2.0 - 22)
+                            
+                            Spacer()
+                        }
+                        .frame(width: boxW, height: boxH)
                     }
                     .position(x: boxCenterX, y: boxCenterY)
                     .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isLocked)
                     
                     // ==========================================
-                    // 2. 空间构图目标锚点环 (Target Halo Ring)
+                    // 2. 空间构图目标圆心 (Target Anchor)
                     // ==========================================
                     let targetAnchorX = engine.targetCenter.x * w
                     let targetAnchorY = engine.targetCenter.y * h
                     
                     ZStack {
-                        // 目标环外围
                         Circle()
                             .stroke(
                                 isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45).opacity(0.8) : Color.yellow.opacity(0.4),
                                 lineWidth: 1.5
                             )
-                            .frame(width: 32, height: 32)
-                            .scaleEffect(isLocked ? pulseScale : 1.0)
+                            .frame(width: 30, height: 30)
                         
-                        // 目标圆心小环
                         Circle()
                             .stroke(
                                 isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45) : Color.yellow.opacity(0.8),
                                 lineWidth: 2.0
                             )
-                            .frame(width: 14, height: 14)
+                            .frame(width: 12, height: 12)
                     }
                     .position(x: targetAnchorX, y: targetAnchorY)
                     
                     // ==========================================
-                    // 3. 手机 60Hz 动态空间陀螺准星 (Live Reticle)
+                    // 3. 动态平滑滤波空间准星 (Live Reticle)
                     // ==========================================
                     let liveX = engine.liveCrosshair.x * w
                     let liveY = engine.liveCrosshair.y * h
                     
                     ZStack {
-                        // 动态准星光点
                         Circle()
                             .fill(isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45) : Color.white)
                             .frame(width: 10, height: 10)
                             .shadow(color: isLocked ? Color.green : Color.white, radius: 4)
                         
-                        // 未对准时虚线引导准星朝目标环靠拢
                         if !isLocked {
                             Path { path in
                                 path.move(to: CGPoint(x: liveX, y: liveY))
@@ -126,10 +156,10 @@ public struct NavigationOverlayView: View {
                     .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.8), value: engine.liveCrosshair)
                     
                     // ==========================================
-                    // 4. 实时指挥动态微胶囊 (对标三星/谷歌实拍指挥浮层)
+                    // 4. 实时指挥提示微胶囊
                     // ==========================================
                     VStack(spacing: 8) {
-                        let tipText = engine.currentTip.isEmpty ? (guidance?.coachTip ?? "正在智能分析构图...") : engine.currentTip
+                        let tipText = engine.currentTip.isEmpty ? (guidance?.coachTip ?? "AI 正在全景分析...") : engine.currentTip
                         
                         HStack(spacing: 8) {
                             if isLocked {
@@ -137,7 +167,6 @@ public struct NavigationOverlayView: View {
                                     .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(Color(red: 0.0, green: 0.95, blue: 0.45))
                             } else {
-                                // 吻合对准度指示环
                                 ZStack {
                                     Circle()
                                         .stroke(Color.white.opacity(0.2), lineWidth: 2)
@@ -161,72 +190,77 @@ public struct NavigationOverlayView: View {
                         .clipShape(Capsule())
                         .overlay(
                             Capsule().stroke(
-                                isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45).opacity(0.8) : Color.yellow.opacity(0.6),
-                                lineWidth: isLocked ? 1.5 : 1
+                                isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45).opacity(0.8) : Color.white.opacity(0.25),
+                                lineWidth: 1.2
                             )
                         )
-                        .shadow(color: isLocked ? Color.green.opacity(0.4) : Color.black.opacity(0.4), radius: 8, x: 0, y: 3)
+                        .shadow(color: isLocked ? Color.green.opacity(0.3) : Color.black.opacity(0.4), radius: 8)
+                        
+                        if !isLocked && engine.currentDirection != .perfect {
+                            Text(engine.currentDirection.rawValue)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.yellow)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
+                                .background(Color.black.opacity(0.65))
+                                .cornerRadius(12)
+                        }
                     }
-                    .position(x: w / 2.0, y: h * 0.16)
-                    .animation(.easeInOut(duration: 0.25), value: isLocked)
-                }
-                .onAppear {
-                    pulseScale = 1.05
+                    .position(x: w / 2.0, y: min(boxCenterY + boxH / 2.0 + 36, h - 45))
+                    .animation(.spring(response: 0.3, dampingFraction: 0.75), value: engine.currentDirection)
                 }
             }
         }
-        .allowsHitTesting(false)
     }
 }
 
-// MARK: - 四角摄影标尺形状
-private struct CornerBrackets: Shape {
+/// 摄影专业四角取景锚点 (L型 Corner Brackets)
+struct CornerBrackets: Shape {
     let width: CGFloat
     let height: CGFloat
     let isLocked: Bool
-    let bracketLen: CGFloat = 18.0
     
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let halfW = width / 2.0
-        let halfH = height / 2.0
-        let cX = rect.midX
-        let cY = rect.midY
-        
-        let left = cX - halfW
-        let right = cX + halfW
-        let top = cY - halfH
-        let bottom = cY + halfH
+        let len: CGFloat = 16.0
+        let left: CGFloat = (rect.width - width) / 2.0
+        let top: CGFloat = (rect.height - height) / 2.0
+        let right: CGFloat = left + width
+        let bottom: CGFloat = top + height
         
         // 左上角
-        path.move(to: CGPoint(x: left, y: top + bracketLen))
+        path.move(to: CGPoint(x: left, y: top + len))
         path.addLine(to: CGPoint(x: left, y: top))
-        path.addLine(to: CGPoint(x: left + bracketLen, y: top))
+        path.addLine(to: CGPoint(x: left + len, y: top))
         
         // 右上角
-        path.move(to: CGPoint(x: right - bracketLen, y: top))
+        path.move(to: CGPoint(x: right - len, y: top))
         path.addLine(to: CGPoint(x: right, y: top))
-        path.addLine(to: CGPoint(x: right, y: top + bracketLen))
+        path.addLine(to: CGPoint(x: right, y: top + len))
         
         // 左下角
-        path.move(to: CGPoint(x: left, y: bottom - bracketLen))
+        path.move(to: CGPoint(x: left, y: bottom - len))
         path.addLine(to: CGPoint(x: left, y: bottom))
-        path.addLine(to: CGPoint(x: left + bracketLen, y: bottom))
+        path.addLine(to: CGPoint(x: left + len, y: bottom))
         
         // 右下角
-        path.move(to: CGPoint(x: right - bracketLen, y: bottom))
+        path.move(to: CGPoint(x: right - len, y: bottom))
         path.addLine(to: CGPoint(x: right, y: bottom))
-        path.addLine(to: CGPoint(x: right, y: bottom - bracketLen))
+        path.addLine(to: CGPoint(x: right, y: bottom - len))
         
         return path
     }
 }
 
-// MARK: - iOS 磨砂玻璃视觉封装
-private struct BlurView: UIViewRepresentable {
-    let style: UIBlurEffect.Style
+/// 毛玻璃辅助视图
+struct BlurView: UIViewRepresentable {
+    var style: UIBlurEffect.Style
+    
     func makeUIView(context: Context) -> UIVisualEffectView {
-        UIVisualEffectView(effect: UIBlurEffect(style: style))
+        return UIVisualEffectView(effect: UIBlurEffect(style: style))
     }
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
+    
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        uiView.effect = UIBlurEffect(style: style)
+    }
 }
