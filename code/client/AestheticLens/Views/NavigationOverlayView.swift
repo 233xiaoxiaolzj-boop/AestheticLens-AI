@@ -70,10 +70,10 @@ public struct NavigationOverlayView: View {
                                 lineWidth: 2.5
                             )
                         
-                        // 推荐焦段与场景识别胶囊 (挂在框上方)
+                        // 推荐焦段与主体最佳位置指示胶囊
                         VStack {
                             HStack(spacing: 6) {
-                                Text(engine.sceneTypeZh)
+                                Text(engine.sceneTitle.isEmpty ? engine.sceneTypeZh : engine.sceneTitle)
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundColor(.black)
                                     .padding(.horizontal, 6)
@@ -81,14 +81,14 @@ public struct NavigationOverlayView: View {
                                     .background(isLocked ? Color(red: 0.0, green: 0.95, blue: 0.45) : Color(red: 1.0, green: 0.85, blue: 0.35))
                                     .cornerRadius(4)
                                 
-                                Text(String(format: "推荐 %.1f×", engine.recommendedZoom))
+                                Text(String(format: "推荐 %.1f× 焦段", engine.recommendedZoom))
                                     .font(.system(size: 10, weight: .bold, design: .monospaced))
                                     .foregroundColor(.white)
                                 
                                 if engine.isCloudAI {
-                                    Text("云端大模型")
+                                    Text("阿里云 Qwen-VL")
                                         .font(.system(size: 8, weight: .medium))
-                                        .foregroundColor(Color(white: 0.8))
+                                        .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.35))
                                 } else {
                                     Text("视觉神经引擎")
                                         .font(.system(size: 8, weight: .medium))
@@ -206,7 +206,7 @@ public struct NavigationOverlayView: View {
                                 .cornerRadius(12)
                         }
                     }
-                    .position(x: w / 2.0, y: min(boxCenterY + boxH / 2.0 + 36, h - 45))
+                    .position(x: w / 2.0, y: min(boxCenterY + boxH / 2.0 + 36, h - 35))
                     .animation(.spring(response: 0.3, dampingFraction: 0.75), value: engine.currentDirection)
                 }
             }

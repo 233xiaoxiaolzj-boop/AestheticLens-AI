@@ -2,10 +2,10 @@ import SwiftUI
 import AVFoundation
 
 /// 工业级专业全栈电影相机 UI
-/// 1. 变焦轮重构：位于快门正上方，常驻胶囊焦段 (.5, 1×, 2, 3)，滑动唤出上半圆弧形刻度盘 (Upper Arc Dial)
-/// 2. AI 探景核心集成：一键触发阿里云 Qwen-VL 与端侧 Vision 双引擎，圈定黄金局部裁切框
-/// 3. 全系统横屏拍摄：图标与文本根据重力感应原地顺畅旋转 90°/270°，底层照片与 60fps 视频锁定对应方向
-/// 4. 严谨 4:3 / 16:9 几何保真，杜绝纵向拉伸变形
+/// 1. 变焦轮重构：常驻快门正上方上半圆弧形刻度盘 (Upper Arc Dial)，支持 0.1x 丝滑滑动，匹配长焦相机性能
+/// 2. AI 实时场景分析卡片：直观呈现阿里云 Qwen-VL 对当前场景、人物最佳位置、阳光拍摄技巧的详细分析语言
+/// 3. 全系统横屏拍摄自适应：图标原地旋转 90°/270°，底层 48MP 照片与 60fps 电影视频方向自动锁定
+/// 4. 4:3 比例几何保真，彻底杜绝上下拉伸变形
 /// 5. 底部四联专业导航：【相机】、【视频】、【媒体】、【设置】
 public struct CameraView: View {
     @StateObject private var cameraManager = CameraManager.shared
@@ -25,12 +25,14 @@ public struct CameraView: View {
     @State private var showMediaGallery: Bool = false
     @State private var toastMessage: String? = nil
     
-    // 上半圆弧变焦盘交互状态
-    @State private var isArcDialExpanded: Bool = false
-    @State private var dragAccumulator: CGFloat = 0.0
-    @State private var dialAutoCollapseWorkItem: DispatchWorkItem? = nil
+    // AI 分析大师卡片展开/收起状态
+    @State private var showSceneAnalysisCard: Bool = false
     
-    // 原生轻量触觉反馈
+    // 变焦手势状态
+    @State private var dragInitialZoom: CGFloat = 1.0
+    @State private var dragAccumulatedOffset: CGFloat = 0.0
+    
+    // 原生触觉反馈
     private let selectionFeedback = UISelectionFeedbackGenerator()
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
     
@@ -42,7 +44,7 @@ public struct CameraView: View {
     
     public init() {}
     
-    // 计算当前 UI 元素的旋转角度 (实现横屏拍摄自适应)
+    // 横屏拍摄自适应旋转角度
     private var uiRotationAngle: Double {
         switch cameraManager.deviceOrientation {
         case .landscapeLeft:
@@ -70,13 +72,20 @@ public struct CameraView: View {
                 
                 Spacer(minLength: 4)
                 
-                // 2. 取景器中枢 (4:3 标准保真几何视口，严防上下拉伸变形)
+                // 2. 取景器中枢 (4:3 标准保真几何视口，严防拉伸变形)
                 ZStack(alignment: .trailing) {
                     viewfinderContainer
                     
                     // 右侧悬浮 35mm 电影胶卷滑轨
                     filmstripLutOverlayRail
                         .padding(.trailing, 10)
+                    
+                    // AI 深度场景分析语言浮动卡片
+                    if showSceneAnalysisCard && compositionEngine.state != .inactive {
+                        aiSceneAnalysisOverlayCard
+                            .padding(.horizontal, 14)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: UIScreen.main.bounds.width * (4.0 / 3.0))
@@ -84,8 +93,8 @@ public struct CameraView: View {
                 
                 Spacer(minLength: 4)
                 
-                // 3. 变焦轮区域 (位于快门正上方：上半圆弧形刻度盘 / 焦段胶囊行)
-                upperArcZoomControlView
+                // 3. 快门正上方：上半圆弧形连续变焦盘 (0.1x 丝滑精度滑动)
+                upperArcZoomDialView
                     .zIndex(20)
                 
                 // 4. 底部专业控制台 (大快门 + 四联导航)
@@ -93,7 +102,7 @@ public struct CameraView: View {
                     .zIndex(10)
             }
             
-            // 拍照瞬间曝光闪光特效
+            // 曝光快门闪光反馈
             if isFlashing {
                 Color.white
                     .ignoresSafeArea()
@@ -188,7 +197,7 @@ public struct CameraView: View {
             
             Spacer()
             
-            // ✨ AI 探景按钮 (核心触发：阿里云多模态大模型分析场景并圈出黄金机位)
+            // ✨ AI 分析 / 探景按钮 (点击调用阿里云 Qwen-VL 模型进行实时场景深度分析)
             Button(action: handleAITrigger) {
                 let isEngineActive = (compositionEngine.state != .inactive)
                 let isAnalyzing = (compositionEngine.state == .analyzing)
@@ -203,7 +212,7 @@ public struct CameraView: View {
                             .font(.system(size: 12))
                     }
                     
-                    Text(isAnalyzing ? "AI 探景中..." : (isEngineActive ? "构图指引中" : "AI 探景"))
+                    Text(isAnalyzing ? "AI 分析中..." : (isEngineActive ? "AI 场景分析" : "✨ AI 分析"))
                         .font(.system(size: 11, weight: .semibold))
                 }
                 .foregroundColor(isEngineActive ? .black : .white)
@@ -220,13 +229,18 @@ public struct CameraView: View {
         }
     }
     
-    // AI 探景点击响应
+    // AI 分析点击响应
     private func handleAITrigger() {
         impactFeedback.impactOccurred()
         if compositionEngine.state != .inactive {
-            compositionEngine.stopRealtimeGuidance()
+            withAnimation(.spring(response: 0.3)) {
+                showSceneAnalysisCard.toggle()
+            }
         } else {
             compositionEngine.startRealtimeGuidance(cameraManager: cameraManager)
+            withAnimation(.spring(response: 0.35)) {
+                showSceneAnalysisCard = true
+            }
         }
     }
     
@@ -260,10 +274,143 @@ public struct CameraView: View {
         }
     }
     
+    // MARK: - AI 深度场景分析语言浮动卡片 (用户重点需求：人物最佳位置、阳光拍摄技巧)
+    private var aiSceneAnalysisOverlayCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 卡片头部
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                        .font(.system(size: 13, weight: .bold))
+                    Text(compositionEngine.sceneTitle.isEmpty ? compositionEngine.sceneTypeZh : compositionEngine.sceneTitle)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text(compositionEngine.isCloudAI ? "阿里云 Qwen-VL" : "视觉神经引擎")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.12))
+                        .cornerRadius(3)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        showSceneAnalysisCard = false
+                    }
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+            }
+            
+            Divider().background(Color.white.opacity(0.15))
+            
+            // 1. 当前场景与主体深度分析
+            if !compositionEngine.sceneAnalysis.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("🏞️ 场景解构:")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                    }
+                    Text(compositionEngine.sceneAnalysis)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineSpacing(2)
+                }
+            }
+            
+            // 2. 光线与拍摄技巧分析 (阳光/逆光拍法)
+            if !compositionEngine.lightingAndElement.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("☀️ 光影技巧:")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                    }
+                    Text(compositionEngine.lightingAndElement)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineSpacing(2)
+                }
+            }
+            
+            // 3. 主体在哪个位置效果最佳 (最佳位置引导)
+            if !compositionEngine.placementGuide.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("🎯 最佳机位:")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color(red: 0.0, green: 0.95, blue: 0.45))
+                    }
+                    Text(compositionEngine.placementGuide)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineSpacing(2)
+                }
+            }
+            
+            // 底部操作栏：一键推镜与应用胶片
+            HStack(spacing: 10) {
+                Button(action: {
+                    selectionFeedback.selectionChanged()
+                    cameraManager.setZoom(factor: CGFloat(compositionEngine.recommendedZoom))
+                    showToast(String(format: "已推镜至推荐 %.1f×", compositionEngine.recommendedZoom))
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "camera.metering.matrix")
+                        Text(String(format: "一键推镜 %.1f×", compositionEngine.recommendedZoom))
+                    }
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color(red: 1.0, green: 0.88, blue: 0.35))
+                    .cornerRadius(6)
+                }
+                
+                Button(action: {
+                    selectionFeedback.selectionChanged()
+                    activeLutName = compositionEngine.recommendedFilterPreset
+                    isLutFilterEnabled = true
+                    MetalRenderer.shared.applyPreset(activeLutName)
+                    showToast("已应用推荐风格: \(activeLutName)")
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "film")
+                        Text("应用 \(compositionEngine.recommendedFilterPreset.prefix(2))")
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.white.opacity(0.15))
+                    .cornerRadius(6)
+                }
+                
+                Spacer()
+            }
+            .padding(.top, 2)
+        }
+        .padding(12)
+        .background(Color.black.opacity(0.85))
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.4), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.6), radius: 10)
+    }
+    
     // MARK: - 右侧悬浮 35mm 胶卷选择器
     private var filmstripLutOverlayRail: some View {
         VStack(spacing: 8) {
-            // 胶卷折叠/展开按钮
             Button(action: {
                 selectionFeedback.selectionChanged()
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
@@ -312,133 +459,102 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 快门正上方：上半圆弧形变焦轮 (Upper Arc Dial)
-    private var upperArcZoomControlView: some View {
-        VStack(spacing: 6) {
-            if isArcDialExpanded {
-                // 1. 展开模式：优雅的上半圆弧度连续拨盘 (像苹果原生相机一样丝滑)
-                arcDialExpandedView
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            } else {
-                // 2. 常驻收起模式：精巧焦段胶囊行 (.5, 1×, 2, 3)
-                compactZoomCapsulesRow
-                    .transition(.opacity)
-            }
-        }
-        .frame(height: 52)
-        .padding(.horizontal, 20)
-    }
-    
-    // 常驻紧凑焦段胶囊 (.5, 1×, 2, 3)
-    private var compactZoomCapsulesRow: some View {
-        HStack(spacing: 12) {
-            let presets: [(label: String, val: CGFloat)] = [
-                (".5", 0.5),
-                ("1×", 1.0),
-                ("2", 2.0),
-                ("3", 3.0)
-            ]
-            
-            ForEach(presets, id: \.val) { item in
-                let isCurrent = abs(cameraManager.currentZoom - item.val) < 0.2
-                Button(action: {
-                    selectionFeedback.selectionChanged()
-                    cameraManager.setZoom(factor: item.val)
-                }) {
-                    Text(item.label)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
-                        .frame(width: 36, height: 36)
-                        .background(isCurrent ? Color.black.opacity(0.8) : Color.black.opacity(0.45))
-                        .clipShape(Circle())
+    // MARK: - 快门正上方：上半圆弧形连续变焦盘 (Upper Arc Zoom Dial)
+    // 彻底解决滑动丢失问题：支持 0.1x 步进丝滑拖拽，匹配长焦相机性能
+    private var upperArcZoomDialView: some View {
+        VStack(spacing: 4) {
+            // 1. 上半圆拱形轨道与刻度线容器
+            ZStack {
+                // 向上拱起的半圆弧导轨 Shape
+                ArcDialTrackShape()
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1.5)
+                    .frame(width: 260, height: 28)
+                
+                // 弧线上分布的微刻度线与当前变焦数字指示
+                HStack(spacing: 12) {
+                    Text(String(format: "%.1f×", cameraManager.currentZoom))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 3)
+                        .background(Color.black.opacity(0.85))
+                        .clipShape(Capsule())
                         .overlay(
-                            Circle()
-                                .stroke(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.2), lineWidth: isCurrent ? 1.5 : 0.8)
+                            Capsule().stroke(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.7), lineWidth: 1)
                         )
                 }
-                .rotationEffect(.degrees(uiRotationAngle))
-                .animation(.spring(response: 0.3), value: uiRotationAngle)
             }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.black.opacity(0.35))
-        .clipShape(Capsule())
-        // 水平滑动或按住即可展开上半圆弧度变焦轮
-        .gesture(
-            DragGesture(minimumDistance: 8)
-                .onChanged { _ in
-                    selectionFeedback.selectionChanged()
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                        isArcDialExpanded = true
-                    }
-                    resetDialCollapseTimer()
-                }
-        )
-        .onTapGesture(count: 2) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                isArcDialExpanded.toggle()
-            }
-        }
-    }
-    
-    // 展开的上半圆弧刻度盘视图
-    private var arcDialExpandedView: some View {
-        ZStack {
-            // 背景圆弧滑槽 (向上拱起)
-            ArcDialShape()
-                .stroke(Color.white.opacity(0.2), lineWidth: 2)
-                .frame(width: 260, height: 42)
+            .frame(height: 30)
             
-            // 弧线上分布的微刻度线与当前数字指示
-            HStack(spacing: 16) {
-                Text(String(format: "%.1f×", cameraManager.currentZoom))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .background(Color.black.opacity(0.75))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color(red: 1.0, green: 0.88, blue: 0.35), lineWidth: 1))
-            }
-            .offset(y: -4)
-        }
-        .frame(width: 280, height: 48)
-        .contentShape(Rectangle())
-        // 左右拖拽实现连续无级变焦
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    let delta = -value.translation.width / 140.0
-                    let target = max(0.5, min(10.0, cameraManager.currentZoom + delta * 0.15))
-                    let roundedTarget = (target * 10).rounded() / 10
-                    if roundedTarget != cameraManager.currentZoom {
+            // 2. 快捷对齐与连续滑动焦段胶囊行 (.5, 1×, 2, 3, 5)
+            HStack(spacing: 10) {
+                let quickPresets: [(label: String, val: CGFloat)] = [
+                    (".5", 0.5),
+                    ("1×", 1.0),
+                    ("2", 2.0),
+                    ("3", 3.0),
+                    ("5", 5.0)
+                ]
+                
+                ForEach(quickPresets, id: \.val) { item in
+                    let isCurrent = abs(cameraManager.currentZoom - item.val) < 0.15
+                    Button(action: {
                         selectionFeedback.selectionChanged()
-                        cameraManager.setZoom(factor: roundedTarget)
+                        cameraManager.setZoom(factor: item.val)
+                    }) {
+                        Text(item.label)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
+                            .frame(width: 34, height: 34)
+                            .background(isCurrent ? Color.black.opacity(0.85) : Color.black.opacity(0.45))
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.2), lineWidth: isCurrent ? 1.5 : 0.8)
+                            )
                     }
-                    resetDialCollapseTimer()
+                    .rotationEffect(.degrees(uiRotationAngle))
+                    .animation(.spring(response: 0.3), value: uiRotationAngle)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.black.opacity(0.35))
+            .clipShape(Capsule())
+        }
+        .frame(height: 72)
+        .padding(.horizontal, 16)
+        .contentShape(Rectangle())
+        // 核心丝滑手势：在整个变焦轮区域滑动，直接以 0.1x 精度线性连续调焦，绝无任何手势冲突！
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if dragAccumulatedOffset == 0.0 {
+                        dragInitialZoom = cameraManager.currentZoom
+                        dragAccumulatedOffset = value.translation.width
+                    }
+                    
+                    // 水平位移灵敏度计算：每约 10 个像素平滑步进 0.1x
+                    let delta = -value.translation.width / 95.0
+                    let rawTarget = dragInitialZoom + delta
+                    let clamped = max(cameraManager.minZoom, min(rawTarget, cameraManager.maxZoom))
+                    let rounded = (clamped * 10.0).rounded() / 10.0
+                    
+                    if rounded != cameraManager.currentZoom {
+                        selectionFeedback.selectionChanged()
+                        cameraManager.setZoom(factor: rounded)
+                    }
                 }
                 .onEnded { _ in
-                    resetDialCollapseTimer()
+                    dragAccumulatedOffset = 0.0
+                    dragInitialZoom = cameraManager.currentZoom
                 }
         )
-    }
-    
-    // 延迟 2.5 秒自动收起变焦弧盘
-    private func resetDialCollapseTimer() {
-        dialAutoCollapseWorkItem?.cancel()
-        let item = DispatchWorkItem {
-            withAnimation(.easeOut(duration: 0.25)) {
-                self.isArcDialExpanded = false
-            }
-        }
-        dialAutoCollapseWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: item)
     }
     
     // MARK: - 底部专业控制台 (大快门 + 四联控制栏：相机、视频、媒体、设置)
     private var bottomProfessionalDashboard: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             // 1. 中央核心快门控制行
             HStack {
                 // 左侧：前后摄像头翻转
@@ -570,7 +686,7 @@ public struct CameraView: View {
             .background(Color.white.opacity(0.06))
             .cornerRadius(16)
             .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+            .padding(.bottom, 6)
         }
     }
     
@@ -673,14 +789,14 @@ public struct CameraView: View {
     }
 }
 
-/// 上半圆拱形轨道 Shape (用于变焦盘)
-struct ArcDialShape: Shape {
+/// 上半圆拱形轨道导引 Shape
+struct ArcDialTrackShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let startAngle = Angle(degrees: 195)
-        let endAngle = Angle(degrees: 345)
-        let center = CGPoint(x: rect.midX, y: rect.height * 2.2)
-        let radius = rect.height * 2.0
+        let startAngle = Angle(degrees: 200)
+        let endAngle = Angle(degrees: 340)
+        let center = CGPoint(x: rect.midX, y: rect.height * 2.5)
+        let radius = rect.height * 2.2
         path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
         return path
     }

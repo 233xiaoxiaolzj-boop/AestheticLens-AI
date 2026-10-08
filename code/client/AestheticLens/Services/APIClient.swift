@@ -33,17 +33,25 @@ public enum ServerEnvironment: String, CaseIterable, Identifiable {
 
 /// 场景探景分析结果数据结构 (由阿里云 Qwen-VL 或端侧 Vision 生成)
 public struct SceneExplorationResult: Codable {
-    public let sceneType: String        // "landscape" 或 "portrait"
+    public let sceneType: String          // "landscape" 或 "portrait"
     public let isPortrait: Bool
-    public let cropBox: CropBox         // [ymin, xmin, ymax, xmax]
-    public let recommendedZoom: Double  // 如 1.0, 2.0, 2.5, 3.0
-    public let filterPreset: String     // 推荐胶片滤镜名称
-    public let adviceZh: String         // 12字以内精炼构图点拨
-    public let isFromAliyunCloud: Bool  // 是否来自阿里云 Qwen-VL 云端
+    public let sceneTitle: String         // 场景精炼标题，如"山间逆光人像", "林间透光丁达尔"
+    public let sceneAnalysis: String      // 场景深度解构：背景、主体、空间关系现状
+    public let lightingAndElement: String // 光影与元素深度分析：镜头中阳光怎么拍效果最好
+    public let placementGuide: String     // 最佳位置指引：人物/主体在哪个位置效果最佳
+    public let cropBox: CropBox           // [ymin, xmin, ymax, xmax] 圈定黄金区域
+    public let recommendedZoom: Double    // 如 1.0, 2.0, 2.5, 3.0, 5.0
+    public let filterPreset: String       // 推荐胶片滤镜名称
+    public let adviceZh: String           // 12字以内精辟点睛之笔
+    public let isFromAliyunCloud: Bool    // 是否来自阿里云 Qwen-VL 云端
     
     public init(
         sceneType: String,
         isPortrait: Bool,
+        sceneTitle: String = "",
+        sceneAnalysis: String = "",
+        lightingAndElement: String = "",
+        placementGuide: String = "",
         cropBox: CropBox,
         recommendedZoom: Double,
         filterPreset: String,
@@ -52,6 +60,10 @@ public struct SceneExplorationResult: Codable {
     ) {
         self.sceneType = sceneType
         self.isPortrait = isPortrait
+        self.sceneTitle = sceneTitle.isEmpty ? (isPortrait ? "人像空间打卡" : "自然光影风光") : sceneTitle
+        self.sceneAnalysis = sceneAnalysis.isEmpty ? (isPortrait ? "画面包含人物主体与背景，主体当前位置可进一步优化。" : "视野宽阔，光影景致丰富，建议提炼视觉焦点。") : sceneAnalysis
+        self.lightingAndElement = lightingAndElement.isEmpty ? "顺应主光源方向，利用透射光勾勒轮廓与层次。" : lightingAndElement
+        self.placementGuide = placementGuide.isEmpty ? adviceZh : placementGuide
         self.cropBox = cropBox
         self.recommendedZoom = recommendedZoom
         self.filterPreset = filterPreset
@@ -794,15 +806,16 @@ public final class APIClient: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.timeoutInterval = 6.0
             let systemPrompt = """
-            你是一位享誉国际的中国古建园林与商业电影摄影大师。现在需要为相机用户提供专业的取景减法指导：
-            1. 分析画面核心场景：判断属于 'landscape' (如颐和园古建筑、湖水倒影、树木山石) 还是 'portrait' (人物打卡、人像特写)；
-            2. 贯彻'摄影做减法'逻辑：避开杂乱人群、无用路面或凌乱前景；
-            3. 圈出画面中最具美感与秩序感的黄金局部区域，严格给出归一化坐标 crop_box: [ymin, xmin, ymax, xmax] (取值范围 0.05 ~ 0.95)；
-            4. 推荐拍摄焦段（如 1.0, 2.0, 2.5, 3.0, 5.0，风景建筑或减法时优先推荐 2.5x 或 3.0x 空间压缩）；
-            5. 推荐适合的胶片色调（如 '01-暖金电影', '02-富士冷萃', '03-赛博青橙', '04-电影质感', '06-徕卡黑白'）；
-            6. 给出 12 字以内极其精辟的点拨（如：'避开人流 以飞檐倒影构图'）。
-            请务必只输出标准的 JSON，格式如下：
-            {"scene_type":"landscape","is_portrait":false,"crop_box":[0.18, 0.15, 0.82, 0.85],"recommended_zoom":3.0,"filter_preset":"01-暖金电影","advice_zh":"长焦压缩空间 突出飞檐秩序"}
+            你是一位享誉国际的商业电影摄影指导与自然风光/人像大师。请对用户当前取景画面进行专业的深度实时审美与机位解构：
+            1. 识别场景题材与标题(scene_title)：如'山间逆光人像'、'林间透光丁达尔'、'古建飞檐倒影'；
+            2. 场景深度分析(scene_analysis)：详细描述当前画面包含哪些关键元素（如人物、山间、阳光、建筑），主体当前处于画面什么位置，背景与主体关系如何；
+            3. 光影与镜头技巧(lighting_and_element)：重点分析光线（如当前有一束斜射阳光、逆光、柔光等怎么拍效果最好，如何利用明暗反差与光斑提升画面质感）；
+            4. 主体最佳位置与机位指导(placement_guide)：深入分析人物或主体在画面哪个位置效果最佳（如置于画面左侧1/3交点、视线前方留白），机位该如何移动（如压低机位仰拍避开杂草、迎光角度等）；
+            5. 圈出最具美感的黄金局部区域归一化坐标(crop_box: [ymin, xmin, ymax, xmax]，取值0.05~0.95)；
+            6. 推荐焦段(recommended_zoom: 如 1.0, 2.0, 2.5, 3.0, 5.0)与电影胶片预设(filter_preset: '01-暖金电影'、'02-富士冷萃'等)；
+            7. 给出12字以内精练点睛之笔(advice_zh)。
+            请务必只输出标准的 JSON 字符串，格式如下：
+            {"scene_type":"portrait","is_portrait":true,"scene_title":"山间逆光人像","scene_analysis":"人物置于山间背景中，斜上方有透射阳光照射。当前人物偏离视觉重心，前景杂乱削弱了山峦纵深感。","lighting_and_element":"利用透射阳光形成自然侧逆光，打亮发丝与肩线，增强与背景山峦的立体分离感。","placement_guide":"建议将人物调整至左侧三分线黄金交点，机位下压15度仰拍突显山脉耸立，长焦2.5x压缩山景。","crop_box":[0.15, 0.15, 0.85, 0.80],"recommended_zoom":2.5,"filter_preset":"01-暖金电影","advice_zh":"人物左移三分位 仰拍借光勾边"}
             """
             let requestBody: [String: Any] = [
                 "model": "qwen-vl-plus",
@@ -871,9 +884,18 @@ public final class APIClient: ObservableObject {
             let recZoom = parsed["recommended_zoom"] as? Double ?? (isPortrait ? 2.0 : 3.0)
             let filter = parsed["filter_preset"] as? String ?? (isPortrait ? "02-富士冷萃" : "01-暖金电影")
             let advice = parsed["advice_zh"] as? String ?? (isPortrait ? "突出人物神韵 避开杂乱背景" : "空间减法 长焦突出秩序")
+            let sceneTitle = parsed["scene_title"] as? String ?? (isPortrait ? "山间人像打卡" : "自然光影风光")
+            let sceneAnalysis = parsed["scene_analysis"] as? String ?? (isPortrait ? "画面包含人物主体与山野背景，当前主体偏离最佳视觉重心。" : "视野开阔，光线明朗，需进一步提炼视觉焦点。")
+            let lightingAndElement = parsed["lighting_and_element"] as? String ?? "顺应斜射阳光或漫射光方向，利用明暗反差勾勒轮廓与立体层次。"
+            let placementGuide = parsed["placement_guide"] as? String ?? (isPortrait ? "建议将人物移至画面左侧1/3黄金分割交点，镜头压低仰拍避开杂草，长焦2.5x压缩山景。" : "将透光高光区或核心景致置于黄金分割线，长焦3.0x压缩空间。")
+            
             return SceneExplorationResult(
                 sceneType: sceneType,
                 isPortrait: isPortrait,
+                sceneTitle: sceneTitle,
+                sceneAnalysis: sceneAnalysis,
+                lightingAndElement: lightingAndElement,
+                placementGuide: placementGuide,
                 cropBox: cropBox,
                 recommendedZoom: recZoom,
                 filterPreset: filter,
@@ -903,10 +925,14 @@ public final class APIClient: ObservableObject {
             return SceneExplorationResult(
                 sceneType: "portrait",
                 isPortrait: true,
+                sceneTitle: "山间自然人像打卡",
+                sceneAnalysis: "检测到人物主体处于自然风光中。人物当前略偏离黄金视觉重心，背景山峦有较强纵深感。",
+                lightingAndElement: "利用自然环境侧逆光打亮发丝与肩线边缘，增强人物与山峦背景的立体分离感。",
+                placementGuide: "建议将人物调整至画面左侧三分线黄金交点，机位下压15度仰拍突显山势，推镜至2.5x虚化杂乱地面。",
                 cropBox: crop,
-                recommendedZoom: 2.0,
-                filterPreset: "02-富士冷萃",
-                adviceZh: "人物三分构图 虚化背景杂乱",
+                recommendedZoom: 2.5,
+                filterPreset: "01-暖金电影",
+                adviceZh: "人物左移三分位 仰拍借光勾边",
                 isFromAliyunCloud: false
             )
         } else {
@@ -918,10 +944,14 @@ public final class APIClient: ObservableObject {
             return SceneExplorationResult(
                 sceneType: "landscape",
                 isPortrait: false,
+                sceneTitle: "自然风光与空间光影",
+                sceneAnalysis: "画面包含开阔山川林木或建筑景致，视野广阔但视觉焦点较分散。",
+                lightingAndElement: "顺应镜头中穿透的斜射光线，压暗高光寻找明暗对角线，凸显阳光与山林/景物的通透立体感。",
+                placementGuide: "长焦空间做减法：将最具美感的阳光透光区置于黄金分割带，保持水平，长焦3.0x压缩空间秩序。",
                 cropBox: crop,
                 recommendedZoom: 3.0,
                 filterPreset: "01-暖金电影",
-                adviceZh: "长焦空间减法 避开前景路人",
+                adviceZh: "顺应光束对角线 长焦压缩空间",
                 isFromAliyunCloud: false
             )
         }

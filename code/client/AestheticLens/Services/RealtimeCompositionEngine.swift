@@ -36,6 +36,13 @@ public final class RealtimeCompositionEngine: ObservableObject {
     @Published public var isCloudAI: Bool = false
     @Published public var alignmentProgress: Double = 0.0 // 0.0 ~ 1.0
     
+    // AI 深度场景分析语言
+    @Published public var sceneTitle: String = "自然风光"
+    @Published public var sceneAnalysis: String = ""
+    @Published public var lightingAndElement: String = ""
+    @Published public var placementGuide: String = ""
+    @Published public var recommendedFilterPreset: String = "01-暖金电影"
+    
     // 目标黄金取景框与中心坐标 (归一化 0.0 ~ 1.0)
     @Published public var targetCropBox: CropBox = CropBox(ymin: 0.15, xmin: 0.15, ymax: 0.85, xmax: 0.85)
     @Published public var targetCenter: CGPoint = CGPoint(x: 0.5, y: 0.5)
@@ -98,6 +105,9 @@ public final class RealtimeCompositionEngine: ObservableObject {
         state = .inactive
         isAligned = false
         currentTip = ""
+        sceneAnalysis = ""
+        lightingAndElement = ""
+        placementGuide = ""
         alignmentProgress = 0.0
         hasTriggeredLockHaptic = false
         stickyLockUntil = .distantPast
@@ -124,7 +134,12 @@ public final class RealtimeCompositionEngine: ObservableObject {
                     self.targetPitch = (abs(self.motionManager.pitchDegrees) > 8.0) ? self.motionManager.pitchDegrees : 0.0
                     self.currentTip = result.adviceZh
                     self.sceneTypeZh = result.isPortrait ? "人物肖像" : "风光建筑"
+                    self.sceneTitle = result.sceneTitle
+                    self.sceneAnalysis = result.sceneAnalysis
+                    self.lightingAndElement = result.lightingAndElement
+                    self.placementGuide = result.placementGuide
                     self.recommendedZoom = result.recommendedZoom
+                    self.recommendedFilterPreset = result.filterPreset
                     self.isCloudAI = result.isFromAliyunCloud
                     self.state = .tracking
                 }
@@ -142,6 +157,10 @@ public final class RealtimeCompositionEngine: ObservableObject {
                         self.state = .tracking
                         self.currentTip = "长焦空间压缩 避开边缘人流"
                         self.sceneTypeZh = "风光建筑"
+                        self.sceneTitle = "自然风光构图"
+                        self.sceneAnalysis = "视野宽阔，利用长焦镜头压缩山林或景物层次。"
+                        self.lightingAndElement = "顺应光线明暗延伸，寻找对角线构图。"
+                        self.placementGuide = "将核心景致置于黄金分割线，机位保持水平。"
                         self.recommendedZoom = 3.0
                     }
                 }

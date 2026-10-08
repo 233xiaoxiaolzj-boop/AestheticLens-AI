@@ -156,9 +156,14 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
             self.optimizeCameraHardware(camera)
             
             // 配置初始 UI 倍率为原生 1.0x 主摄
+            let base = self.baseMainLensZoomFactor
+            let hwMax = camera.maxAvailableVideoZoomFactor
+            let dynamicMaxUI = (base > 1.0) ? (hwMax / base) : hwMax
+            let safeMaxZoom = max(5.0, min(dynamicMaxUI, 15.0))
+            
             DispatchQueue.main.async {
                 self.minZoom = 0.5
-                self.maxZoom = 10.0
+                self.maxZoom = safeMaxZoom
                 self.currentZoom = 1.0
             }
             // 将硬件镜头物理对齐到 1.0x 真实主摄
@@ -372,27 +377,39 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
     // MARK: - 变焦倍率调节 (与 iPhone 原生相机 1:1 对齐)
     public func setZoom(factor: CGFloat) {
         let clamped = max(minZoom, min(factor, maxZoom))
-        DispatchQueue.main.async { self.currentZoom = (clamped * 10).rounded() / 10 }
+        let rounded = (clamped * 10.0).rounded() / 10.0
+        DispatchQueue.main.async { self.currentZoom = rounded }
         
         sessionQueue.async { [weak self] in
             guard let self = self, let device = self.currentCameraDevice else { return }
-            let hwTarget = self.mapUIToHardwareZoom(clamped)
+            let hwTarget = self.mapUIToHardwareZoom(rounded)
             self.pendingZoomFactor = hwTarget
             let now = CACurrentMediaTime()
-            guard (now - self.lastZoomUpdateTime) >= self.zoomThrottleInterval else { return }
-            self.lastZoomUpdateTime = now
             
-            do {
-                try device.lockForConfiguration()
-                if let target = self.pendingZoomFactor {
-                    let safeTarget = max(device.minAvailableVideoZoomFactor, min(target, device.maxAvailableVideoZoomFactor))
-                    device.videoZoomFactor = safeTarget
-                    self.pendingZoomFactor = nil
+            // 节流控制：30fps (约33ms) 刷入底层硬件，避免阻断渲染
+            if (now - self.lastZoomUpdateTime) >= self.zoomThrottleInterval {
+                self.lastZoomUpdateTime = now
+                self.commitHardwareZoom(device: device)
+            } else {
+                // 若处于节流窗口内，在 35ms 后补发一次以确保手指抬起时的最终倍率必定生效
+                self.sessionQueue.asyncAfter(deadline: .now() + self.zoomThrottleInterval) { [weak self] in
+                    guard let self = self, let dev = self.currentCameraDevice else { return }
+                    self.commitHardwareZoom(device: dev)
                 }
-                device.unlockForConfiguration()
-            } catch {
-                print("[CameraManager] 硬件变焦调节失败: \(error)")
             }
+        }
+    }
+    
+    private func commitHardwareZoom(device: AVCaptureDevice) {
+        guard let target = self.pendingZoomFactor else { return }
+        do {
+            try device.lockForConfiguration()
+            let safeTarget = max(device.minAvailableVideoZoomFactor, min(target, device.maxAvailableVideoZoomFactor))
+            device.videoZoomFactor = safeTarget
+            self.pendingZoomFactor = nil
+            device.unlockForConfiguration()
+        } catch {
+            print("[CameraManager] 硬件变焦提交异常: \(error)")
         }
     }
     
