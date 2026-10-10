@@ -26,6 +26,13 @@ public struct CameraView: View {
     
     // AI 深度场景分析卡片展开状态
     @State private var showSceneAnalysisCard: Bool = false
+
+    // MARK: - 最新成片状态 (用于在 App 内部直接查看最新拍摄的带滤镜大图)
+    @State private var lastCapturedPhoto: UIImage? = nil
+    @State private var lastCapturedFilterName: String = "00-原画"
+    @State private var lastCapturedZoomFactor: CGFloat = 1.0
+    @State private var lastCapturedDate: Date = Date()
+    @State private var thumbnailScaleEffect: CGFloat = 1.0
     
     // 变焦连续手势状态 (基于即时增量位移，彻底杜绝死区卡顿)
     @State private var lastDragLocationX: CGFloat? = nil
@@ -136,7 +143,12 @@ public struct CameraView: View {
             SettingsView()
         }
         .sheet(isPresented: $showMediaGallery) {
-            MediaGallerySheet()
+            MediaGallerySheet(
+                lastPhoto: lastCapturedPhoto,
+                lutName: lastCapturedFilterName,
+                zoomFactor: lastCapturedZoomFactor,
+                captureDate: lastCapturedDate
+            )
         }
         .onAppear {
             cameraManager.checkPermissions()
@@ -227,18 +239,12 @@ public struct CameraView: View {
         }
     }
     
-    // AI 分析点击响应
+    // AI 分析点击响应：每次点击均抓取相机最新一帧，对新场景进行即时重新解构分析
     private func handleAITrigger() {
         impactFeedback.impactOccurred()
-        if compositionEngine.state != .inactive {
-            withAnimation(.spring(response: 0.3)) {
-                showSceneAnalysisCard.toggle()
-            }
-        } else {
-            compositionEngine.startRealtimeGuidance(cameraManager: cameraManager)
-            withAnimation(.spring(response: 0.35)) {
-                showSceneAnalysisCard = true
-            }
+        compositionEngine.refreshSceneAnalysis(cameraManager: cameraManager)
+        withAnimation(.spring(response: 0.35)) {
+            showSceneAnalysisCard = true
         }
     }
     
@@ -359,24 +365,24 @@ public struct CameraView: View {
             }
             
             // 底部操作栏：一键推镜与应用胶片
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Button(action: {
                     selectionFeedback.selectionChanged()
                     cameraManager.setZoom(factor: CGFloat(compositionEngine.recommendedZoom))
                     showToast(String(format: "已推镜至推荐 %.1f×", compositionEngine.recommendedZoom))
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "camera.metering.matrix")
-                        Text(String(format: "一键推镜 %.1f×", compositionEngine.recommendedZoom))
+                        Text(String(format: "推镜 %.1f×", compositionEngine.recommendedZoom))
                     }
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.black)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 8)
                     .padding(.vertical, 5)
                     .background(Color(red: 1.0, green: 0.88, blue: 0.35))
                     .cornerRadius(6)
                 }
-                
+
                 Button(action: {
                     selectionFeedback.selectionChanged()
                     activeLutName = compositionEngine.recommendedFilterPreset
@@ -384,18 +390,35 @@ public struct CameraView: View {
                     MetalRenderer.shared.applyPreset(activeLutName)
                     showToast("已应用推荐风格: \(activeLutName)")
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "film")
                         Text("应用 \(compositionEngine.recommendedFilterPreset.prefix(2))")
                     }
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 7)
                     .padding(.vertical, 5)
                     .background(Color.white.opacity(0.15))
                     .cornerRadius(6)
                 }
-                
+
+                // 🔄 重新识别当前场景按钮 (变换镜头后一键刷新)
+                Button(action: {
+                    impactFeedback.impactOccurred()
+                    compositionEngine.refreshSceneAnalysis(cameraManager: cameraManager)
+                }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text("重新分析")
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 5)
+                    .background(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.18))
+                    .cornerRadius(6)
+                }
+
                 Spacer()
             }
             .padding(.top, 2)
@@ -637,7 +660,7 @@ public struct CameraView: View {
                 .rotationEffect(.degrees(uiRotationAngle))
                 .animation(.spring(response: 0.3), value: uiRotationAngle)
                 
-                // 右侧：媒体相册快速预览
+                // 右侧：媒体相册快速预览 / 最新拍摄成片大图查看入口
                 Button(action: {
                     selectionFeedback.selectionChanged()
                     showMediaGallery = true
@@ -645,10 +668,23 @@ public struct CameraView: View {
                     ZStack {
                         Circle()
                             .fill(Color.white.opacity(0.12))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 18))
-                            .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                            .frame(width: 48, height: 48)
+                        
+                        if let photo = lastCapturedPhoto {
+                            Image(uiImage: photo)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 44, height: 44)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle().stroke(Color(red: 1.0, green: 0.88, blue: 0.35), lineWidth: 1.5)
+                                )
+                                .scaleEffect(thumbnailScaleEffect)
+                        } else {
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.system(size: 18))
+                                .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -739,8 +775,36 @@ public struct CameraView: View {
             
             cameraManager.capturePhoto { photo in
                 guard let image = photo else { return }
-                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                showToast("✓ 照片已保存至系统相册")
+                
+                // 核心：若勾选启用了胶片 LUT 滤镜，则调用 Metal 渲染引擎将 3D LUT 片元着色烘焙至大图
+                let finalImageToSave: UIImage
+                if self.isLutFilterEnabled && self.activeLutName != "00-原画" {
+                    finalImageToSave = MetalRenderer.shared.applyFilterToImage(image)
+                } else {
+                    finalImageToSave = image
+                }
+                
+                // 1. 保存到系统相册
+                UIImageWriteToSavedPhotosAlbum(finalImageToSave, nil, nil, nil)
+                
+                // 2. 存入当前 App 状态供在 App 内部立即查看成片
+                self.lastCapturedPhoto = finalImageToSave
+                self.lastCapturedFilterName = self.isLutFilterEnabled ? self.activeLutName : "00-原画 (RAW)"
+                self.lastCapturedZoomFactor = self.cameraManager.currentZoomFactor
+                self.lastCapturedDate = Date()
+                
+                // 3. 缩略图脉冲反馈
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+                    self.thumbnailScaleEffect = 1.25
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        self.thumbnailScaleEffect = 1.0
+                    }
+                }
+                
+                let toastTitle = self.isLutFilterEnabled ? "✓ 胶片成片已生成并存入相册" : "✓ 原画照片已保存至系统相册"
+                self.showToast(toastTitle)
             }
         } else {
             // 视频流程: 60fps 视频录制直出 (若开启了滤镜则带滤镜，若未开启则原生原画直出)
@@ -820,36 +884,177 @@ struct ArcDialTrackShape: Shape {
     }
 }
 
-/// 媒体相册弹窗
+/// 媒体相册与最近成片专业检视弹窗 (支持在 App 内全屏检视带滤镜成片、手势缩放与系统分享)
 struct MediaGallerySheet: View {
     @Environment(\.presentationMode) var presentationMode
+    let lastPhoto: UIImage?
+    let lutName: String
+    let zoomFactor: CGFloat
+    let captureDate: Date
     
+    @State private var showShareSheet: Bool = false
+    @State private var zoomScale: CGFloat = 1.0
+    @State private var lastZoomScale: CGFloat = 1.0
+
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                Image(systemName: "photo.stack")
-                    .font(.system(size: 48))
-                    .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                    .padding(.top, 40)
+            ZStack {
+                Color.black.ignoresSafeArea()
                 
-                Text("成片直存系统相册")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                
-                Text("所有拍摄的照片与 60fps 视频均已由零拷贝管线无损存入您的 iOS 系统相册中。可在相册 App 中随时检视与分享。")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                
-                Spacer()
+                if let photo = lastPhoto {
+                    VStack(spacing: 0) {
+                        Spacer()
+                        
+                        // 高清大图检视 (双击缩放与捏合缩放)
+                        Image(uiImage: photo)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .scaleEffect(zoomScale)
+                            .gesture(
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        zoomScale = lastZoomScale * value
+                                    }
+                                    .onEnded { _ in
+                                        if zoomScale < 1.0 {
+                                            withAnimation(.spring()) { zoomScale = 1.0 }
+                                        } else if zoomScale > 3.5 {
+                                            withAnimation(.spring()) { zoomScale = 3.5 }
+                                        }
+                                        lastZoomScale = zoomScale
+                                    }
+                            )
+                            .onTapGesture(count: 2) {
+                                withAnimation(.spring()) {
+                                    if zoomScale > 1.2 {
+                                        zoomScale = 1.0
+                                        lastZoomScale = 1.0
+                                    } else {
+                                        zoomScale = 2.0
+                                        lastZoomScale = 2.0
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        Spacer()
+                        
+                        // 底部专业黑金参数条 (胶卷、焦段、分辨率、拍摄时间)
+                        VStack(spacing: 8) {
+                            HStack {
+                                Label(lutName, systemImage: "film.fill")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                                
+                                Spacer()
+                                
+                                Text(String(format: "%.1f× 焦段", zoomFactor))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.85))
+                                
+                                Text("•")
+                                    .foregroundColor(.white.opacity(0.4))
+                                
+                                Text(photoResolutionString(photo))
+                                    .font(.system(size: 11, weight: .regular))
+                                    .foregroundColor(.white.opacity(0.65))
+                            }
+                            
+                            HStack {
+                                Text(formattedDateString(captureDate))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white.opacity(0.5))
+                                Spacer()
+                                Text("✓ 已应用 3D LUT 胶片上色并存入相册")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color(red: 0.0, green: 0.95, blue: 0.45))
+                            }
+                        }
+                        .padding(14)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 20)
+                    }
+                } else {
+                    // 无近期拍摄成片时的优雅占位
+                    VStack(spacing: 16) {
+                        Image(systemName: "camera.viewfinder")
+                            .font(.system(size: 54))
+                            .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                        
+                        Text("暂无近期拍摄成片")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.white)
+                        
+                        Text("轻触大快门即可拍摄，成片将自动烘焙电影胶卷色彩并在此高清检视。")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.6))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 36)
+                    }
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.black.ignoresSafeArea())
-            .navigationTitle("媒体库")
-            .navigationBarItems(trailing: Button("完成") {
-                presentationMode.wrappedValue.dismiss()
-            })
+            .navigationTitle("成片检视")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                leading: Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "chevron.down")
+                        .foregroundColor(.white)
+                        .font(.system(size: 14, weight: .semibold))
+                },
+                trailing: HStack(spacing: 16) {
+                    if let photo = lastPhoto {
+                        Button(action: {
+                            showShareSheet = true
+                        }) {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                                .font(.system(size: 16))
+                        }
+                    }
+                    Button("完成") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                }
+            )
+            .sheet(isPresented: $showShareSheet) {
+                if let photo = lastPhoto {
+                    ActivityViewController(activityItems: [photo])
+                }
+            }
         }
     }
+    
+    private func photoResolutionString(_ image: UIImage) -> String {
+        if let cg = image.cgImage {
+            return "\(cg.width) × \(cg.height)"
+        }
+        return "\(Int(image.size.width)) × \(Int(image.size.height))"
+    }
+    
+    private func formattedDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter.string(from: date)
+    }
+}
+
+/// 系统分享组件 (支持 AirDrop、微信、相册等导出)
+struct ActivityViewController: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    let applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

@@ -250,4 +250,89 @@ public final class MetalRenderer: NSObject, MTKViewDelegate {
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
+
+    // MARK: - 高清静态成片 3D LUT 片元着色烘焙 (用于拍照带滤镜输出)
+    public func applyFilterToImage(_ input: UIImage) -> UIImage {
+        // 如果当前未启用 LUT 纹理或管线不可用，直接返回原图
+        guard let lutTex = self.lutTexture, let pipeline = self.pipelineState else {
+            return input
+        }
+        guard let cgImage = input.cgImage else { return input }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        guard width > 0, height > 0 else { return input }
+
+        // 1. 将原图 CGImage 载入 Metal 纹理
+        let textureLoader = MTKTextureLoader(device: self.device)
+        let loaderOptions: [MTKTextureLoader.Option: Any] = [
+            .origin: MTKTextureLoader.Origin.topLeft,
+            .SRGB: false
+        ]
+        
+        let inTexture: MTLTexture
+        do {
+            inTexture = try textureLoader.newTexture(cgImage: cgImage, options: loaderOptions)
+        } catch {
+            return input
+        }
+
+        // 2. 创建输出离屏纹理 (与输入尺寸与格式一致)
+        let textureDesc = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        textureDesc.usage = [.renderTarget, .shaderRead]
+        guard let outTexture = self.device.makeTexture(descriptor: textureDesc) else {
+            return input
+        }
+
+        // 3. 构建命令缓冲区与渲染通道
+        guard let commandBuffer = self.commandQueue.makeCommandBuffer() else { return input }
+        let renderPassDesc = MTLRenderPassDescriptor()
+        renderPassDesc.colorAttachments[0].texture = outTexture
+        renderPassDesc.colorAttachments[0].loadAction = .clear
+        renderPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1)
+        renderPassDesc.colorAttachments[0].storeAction = .store
+
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDesc) else {
+            return input
+        }
+        encoder.setRenderPipelineState(pipeline)
+        encoder.setFragmentTexture(inTexture, index: 0)
+        encoder.setFragmentTexture(lutTex, index: 1)
+        var intensity = self.lutIntensity
+        encoder.setFragmentBytes(&intensity, length: MemoryLayout<Float>.size, index: 0)
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+        encoder.endEncoding()
+
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        // 4. 将 outTexture 像素数据读取到 CGImage
+        let bytesPerPixel = 4
+        let bytesPerRow = bytesPerPixel * width
+        var pixelBytes = [UInt8](repeating: 0, count: bytesPerRow * height)
+        let region = MTLRegionMake2D(0, 0, width, height)
+        outTexture.getBytes(&pixelBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
+        guard let context = CGContext(
+            data: &pixelBytes,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ), let resultCGImage = context.makeImage() else {
+            return input
+        }
+
+        return UIImage(cgImage: resultCGImage, scale: input.scale, orientation: input.imageOrientation)
+    }
+
 }

@@ -91,13 +91,24 @@ public final class RealtimeCompositionEngine: ObservableObject {
     
     // MARK: - 启动与停止
     public func startRealtimeGuidance(cameraManager: CameraManager) {
-        state = .analyzing
-        currentTip = "AI 正在全景透视，寻找黄金机位..."
-        alignmentProgress = 0.3
-        hasTriggeredLockHaptic = false
-        stickyLockUntil = .distantPast
-        
-        // 捕获全景帧并调用阿里云大模型/本地 Vision
+        refreshSceneAnalysis(cameraManager: cameraManager)
+    }
+
+    /// 强制重新识别当前镜头真实场景并刷新分析文案 (支持镜头变换场景后的即时重新解构)
+    public func refreshSceneAnalysis(cameraManager: CameraManager) {
+        DispatchQueue.main.async {
+            self.state = .analyzing
+            self.currentTip = "AI 正在实时识别当前镜头场景..."
+            self.sceneTitle = "正在分析新场景..."
+            self.sceneAnalysis = "正在解构当前镜头的主体元素与空间层次..."
+            self.lightingAndElement = "正在实时计算光照方向与高光角度..."
+            self.placementGuide = "正在推导最佳构图与机位..."
+            self.alignmentProgress = 0.2
+            self.hasTriggeredLockHaptic = false
+            self.stickyLockUntil = .distantPast
+        }
+
+        // 重新捕获相机最新一帧并执行视觉大模型/端侧 Vision 分析
         fetchOptimalComposition(cameraManager: cameraManager)
     }
     
