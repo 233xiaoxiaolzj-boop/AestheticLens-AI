@@ -790,7 +790,7 @@ public struct CameraView: View {
                 // 2. 存入当前 App 状态供在 App 内部立即查看成片
                 self.lastCapturedPhoto = finalImageToSave
                 self.lastCapturedFilterName = self.isLutFilterEnabled ? self.activeLutName : "00-原画 (RAW)"
-                self.lastCapturedZoomFactor = self.cameraManager.currentZoomFactor
+                self.lastCapturedZoomFactor = self.cameraManager.currentZoom
                 self.lastCapturedDate = Date()
                 
                 // 3. 缩略图脉冲反馈
@@ -1010,7 +1010,7 @@ struct MediaGallerySheet: View {
                         .font(.system(size: 14, weight: .semibold))
                 },
                 trailing: HStack(spacing: 16) {
-                    if let photo = lastPhoto {
+                    if lastPhoto != nil {
                         Button(action: {
                             showShareSheet = true
                         }) {
