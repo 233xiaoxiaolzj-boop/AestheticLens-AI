@@ -2,22 +2,21 @@ import SwiftUI
 import AVFoundation
 
 /// 工业级专业全栈电影相机 UI
-/// 1. 变焦轮重构：常驻快门正上方上半圆弧形刻度盘 (Upper Arc Dial)，支持 0.1x 丝滑滑动，匹配长焦相机性能
-/// 2. AI 实时场景分析卡片：直观呈现阿里云 Qwen-VL 对当前场景、人物最佳位置、阳光拍摄技巧的详细分析语言
-/// 3. 全系统横屏拍摄自适应：图标原地旋转 90°/270°，底层 48MP 照片与 60fps 电影视频方向自动锁定
-/// 4. 4:3 比例几何保真，彻底杜绝上下拉伸变形
-/// 5. 底部四联专业导航：【相机】、【视频】、【媒体】、【设置】
+/// 1. 默认原镜头：启动时保持 100% 纯净原相机，滤镜列表包含 [00-原画]，按需开启
+/// 2. 变焦轮重构：彻底解决卡住划不动，采用高灵敏增量位移滑动引擎，0.1x 丝滑微调
+/// 3. AI 实时场景分析：真实感知镜头场景与焦点，呈现人物最佳机位与阳光拍摄语言
+/// 4. 全系统横屏拍摄自适应与 4:3 几何保真
 public struct CameraView: View {
     @StateObject private var cameraManager = CameraManager.shared
     @StateObject private var motionManager = MotionManager.shared
     @StateObject private var compositionEngine = RealtimeCompositionEngine.shared
     private let apiClient = APIClient.shared
     
-    // MARK: - 模式与滤镜状态 (0: 拍照, 1: 60fps 视频)
+    // MARK: - 模式与滤镜状态 (默认打开为原生原镜头，不叠加任何滤镜)
     @State private var captureMode: Int = 0
-    @State private var activeLutName: String = "01-暖金电影"
+    @State private var activeLutName: String = "00-原画"
     @State private var isFilmstripExpanded: Bool = true
-    @State private var isLutFilterEnabled: Bool = true
+    @State private var isLutFilterEnabled: Bool = false
     
     // UI 交互与弹窗
     @State private var isFlashing: Bool = false
@@ -25,12 +24,11 @@ public struct CameraView: View {
     @State private var showMediaGallery: Bool = false
     @State private var toastMessage: String? = nil
     
-    // AI 分析大师卡片展开/收起状态
+    // AI 深度场景分析卡片展开状态
     @State private var showSceneAnalysisCard: Bool = false
     
-    // 变焦手势状态
-    @State private var dragInitialZoom: CGFloat = 1.0
-    @State private var dragAccumulatedOffset: CGFloat = 0.0
+    // 变焦连续手势状态 (基于即时增量位移，彻底杜绝死区卡顿)
+    @State private var lastDragLocationX: CGFloat? = nil
     
     // 原生触觉反馈
     private let selectionFeedback = UISelectionFeedbackGenerator()
@@ -93,7 +91,7 @@ public struct CameraView: View {
                 
                 Spacer(minLength: 4)
                 
-                // 3. 快门正上方：上半圆弧形连续变焦盘 (0.1x 丝滑精度滑动)
+                // 3. 快门正上方：上半圆弧形连续变焦盘 (0.1x 丝滑增量滑动，绝不卡住)
                 upperArcZoomDialView
                     .zIndex(20)
                 
@@ -164,7 +162,7 @@ public struct CameraView: View {
                     .background(Color.white.opacity(0.12))
                     .cornerRadius(4)
                 
-                Text("P3 WIDE")
+                Text(isLutFilterEnabled ? activeLutName.prefix(2) : "RAW原画")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(.white.opacity(0.75))
                     .padding(.horizontal, 5)
@@ -197,7 +195,7 @@ public struct CameraView: View {
             
             Spacer()
             
-            // ✨ AI 分析 / 探景按钮 (点击调用阿里云 Qwen-VL 模型进行实时场景深度分析)
+            // ✨ AI 分析 / 探景按钮 (实时识别当前镜头场景，输出真实场景构图指导)
             Button(action: handleAITrigger) {
                 let isEngineActive = (compositionEngine.state != .inactive)
                 let isAnalyzing = (compositionEngine.state == .analyzing)
@@ -212,7 +210,7 @@ public struct CameraView: View {
                             .font(.system(size: 12))
                     }
                     
-                    Text(isAnalyzing ? "AI 分析中..." : (isEngineActive ? "AI 场景分析" : "✨ AI 分析"))
+                    Text(isAnalyzing ? "AI 识别中..." : (isEngineActive ? "AI 场景分析" : "✨ AI 分析"))
                         .font(.system(size: 11, weight: .semibold))
                 }
                 .foregroundColor(isEngineActive ? .black : .white)
@@ -248,7 +246,7 @@ public struct CameraView: View {
     private var viewfinderContainer: some View {
         GeometryReader { proxy in
             ZStack {
-                // 1. Metal 实时高刷取景 (支持 3D LUT 即时着色)
+                // 1. Metal 实时取景 (默认未开启滤镜时直接原镜头直通渲染)
                 MetalView(activePreset: isLutFilterEnabled ? activeLutName : "00-自然原画")
                     .frame(width: proxy.size.width, height: proxy.size.height)
                     .contentShape(Rectangle())
@@ -274,10 +272,10 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - AI 深度场景分析语言浮动卡片 (用户重点需求：人物最佳位置、阳光拍摄技巧)
+    // MARK: - AI 实时场景深度分析语言浮动卡片
     private var aiSceneAnalysisOverlayCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 卡片头部
+            // 卡片头部与来源识别
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkles")
@@ -287,13 +285,23 @@ public struct CameraView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.white)
                     
-                    Text(compositionEngine.isCloudAI ? "阿里云 Qwen-VL" : "视觉神经引擎")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color.white.opacity(0.12))
-                        .cornerRadius(3)
+                    if compositionEngine.isCloudAI {
+                        Text("阿里云 Qwen-VL")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.white.opacity(0.12))
+                            .cornerRadius(3)
+                    } else {
+                        Text("端侧视觉神经引擎 · 实时分析")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(Color(white: 0.85))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.white.opacity(0.12))
+                            .cornerRadius(3)
+                    }
                 }
                 
                 Spacer()
@@ -314,11 +322,9 @@ public struct CameraView: View {
             // 1. 当前场景与主体深度分析
             if !compositionEngine.sceneAnalysis.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text("🏞️ 场景解构:")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                    }
+                    Text("🏞️ 场景解构:")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
                     Text(compositionEngine.sceneAnalysis)
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.9))
@@ -329,11 +335,9 @@ public struct CameraView: View {
             // 2. 光线与拍摄技巧分析 (阳光/逆光拍法)
             if !compositionEngine.lightingAndElement.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text("☀️ 光影技巧:")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                    }
+                    Text("☀️ 光影技巧:")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
                     Text(compositionEngine.lightingAndElement)
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.9))
@@ -341,14 +345,12 @@ public struct CameraView: View {
                 }
             }
             
-            // 3. 主体在哪个位置效果最佳 (最佳位置引导)
+            // 3. 主体在哪个位置效果最佳 (最佳位置指导)
             if !compositionEngine.placementGuide.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text("🎯 最佳机位:")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(red: 0.0, green: 0.95, blue: 0.45))
-                    }
+                    Text("🎯 最佳机位:")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color(red: 0.0, green: 0.95, blue: 0.45))
                     Text(compositionEngine.placementGuide)
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.9))
@@ -408,7 +410,7 @@ public struct CameraView: View {
         .shadow(color: Color.black.opacity(0.6), radius: 10)
     }
     
-    // MARK: - 右侧悬浮 35mm 胶卷选择器
+    // MARK: - 右侧悬浮 35mm 胶卷选择器 (加入 00-原画，支持一键切换原镜头)
     private var filmstripLutOverlayRail: some View {
         VStack(spacing: 8) {
             Button(action: {
@@ -430,21 +432,42 @@ public struct CameraView: View {
             .animation(.spring(response: 0.3), value: uiRotationAngle)
             
             if isFilmstripExpanded {
-                let presets = ["01-暖金电影", "02-富士冷萃", "03-赛博青橙", "04-电影质感", "06-徕卡黑白"]
+                let presets = ["00-原画", "01-暖金", "02-冷萃", "03-青橙", "04-电影", "06-黑白"]
                 ForEach(presets, id: \.self) { preset in
-                    let isSelected = (preset == activeLutName && isLutFilterEnabled)
+                    let isSelected = (preset == "00-原画" && !isLutFilterEnabled) ||
+                                     (isLutFilterEnabled && activeLutName.contains(preset.prefix(2)))
+                    
                     Button(action: {
                         selectionFeedback.selectionChanged()
-                        activeLutName = preset
-                        isLutFilterEnabled = true
-                        MetalRenderer.shared.applyPreset(preset)
+                        if preset == "00-原画" {
+                            // 保持原镜头：关闭滤镜直通原生画质
+                            isLutFilterEnabled = false
+                            activeLutName = "00-原画"
+                            MetalRenderer.shared.applyPreset("00-自然原画")
+                            showToast("已切回原生原画镜头")
+                        } else {
+                            // 按需开启电影风格滤镜
+                            isLutFilterEnabled = true
+                            let fullName: String
+                            switch preset {
+                            case "01-暖金": fullName = "01-暖金电影"
+                            case "02-冷萃": fullName = "02-富士冷萃"
+                            case "03-青橙": fullName = "03-赛博青橙"
+                            case "04-电影": fullName = "04-电影质感"
+                            case "06-黑白": fullName = "06-徕卡黑白"
+                            default: fullName = "01-暖金电影"
+                            }
+                            activeLutName = fullName
+                            MetalRenderer.shared.applyPreset(fullName)
+                            showToast("已应用风格: \(fullName)")
+                        }
                     }) {
                         VStack(spacing: 2) {
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(isSelected ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.35))
                                 .frame(width: 24, height: 3)
                             
-                            Text(preset.prefix(2))
+                            Text(preset == "00-原画" ? "RAW" : preset.prefix(2))
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                                 .foregroundColor(isSelected ? .black : .white)
                                 .frame(width: 32, height: 26)
@@ -460,34 +483,32 @@ public struct CameraView: View {
     }
     
     // MARK: - 快门正上方：上半圆弧形连续变焦盘 (Upper Arc Zoom Dial)
-    // 彻底解决滑动丢失问题：支持 0.1x 步进丝滑拖拽，匹配长焦相机性能
+    // 彻底重构手势：基于即时增量位移，无按钮冲突，左右滑动 0.1x 极度丝滑
     private var upperArcZoomDialView: some View {
         VStack(spacing: 4) {
-            // 1. 上半圆拱形轨道与刻度线容器
+            // 1. 上半圆拱形微弧导轨与中央高亮倍率
             ZStack {
-                // 向上拱起的半圆弧导轨 Shape
                 ArcDialTrackShape()
                     .stroke(Color.white.opacity(0.2), lineWidth: 1.5)
                     .frame(width: 260, height: 28)
                 
-                // 弧线上分布的微刻度线与当前变焦数字指示
-                HStack(spacing: 12) {
-                    Text(String(format: "%.1f×", cameraManager.currentZoom))
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 3)
-                        .background(Color.black.opacity(0.85))
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule().stroke(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.7), lineWidth: 1)
-                        )
-                }
+                // 中央大号变焦数字指示
+                Text(String(format: "%.1f×", cameraManager.currentZoom))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 3)
+                    .background(Color.black.opacity(0.85))
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.7), lineWidth: 1)
+                    )
             }
             .frame(height: 30)
             
             // 2. 快捷对齐与连续滑动焦段胶囊行 (.5, 1×, 2, 3, 5)
-            HStack(spacing: 10) {
+            // 采用 onTapGesture 而非 Button，绝不拦截外层滑动！
+            HStack(spacing: 12) {
                 let quickPresets: [(label: String, val: CGFloat)] = [
                     (".5", 0.5),
                     ("1×", 1.0),
@@ -498,23 +519,22 @@ public struct CameraView: View {
                 
                 ForEach(quickPresets, id: \.val) { item in
                     let isCurrent = abs(cameraManager.currentZoom - item.val) < 0.15
-                    Button(action: {
-                        selectionFeedback.selectionChanged()
-                        cameraManager.setZoom(factor: item.val)
-                    }) {
-                        Text(item.label)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
-                            .frame(width: 34, height: 34)
-                            .background(isCurrent ? Color.black.opacity(0.85) : Color.black.opacity(0.45))
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.2), lineWidth: isCurrent ? 1.5 : 0.8)
-                            )
-                    }
-                    .rotationEffect(.degrees(uiRotationAngle))
-                    .animation(.spring(response: 0.3), value: uiRotationAngle)
+                    Text(item.label)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
+                        .frame(width: 36, height: 36)
+                        .background(isCurrent ? Color.black.opacity(0.85) : Color.black.opacity(0.45))
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.2), lineWidth: isCurrent ? 1.5 : 0.8)
+                        )
+                        .onTapGesture {
+                            selectionFeedback.selectionChanged()
+                            cameraManager.setZoom(factor: item.val)
+                        }
+                        .rotationEffect(.degrees(uiRotationAngle))
+                        .animation(.spring(response: 0.3), value: uiRotationAngle)
                 }
             }
             .padding(.horizontal, 8)
@@ -522,32 +542,29 @@ public struct CameraView: View {
             .background(Color.black.opacity(0.35))
             .clipShape(Capsule())
         }
-        .frame(height: 72)
+        .frame(height: 74)
         .padding(.horizontal, 16)
         .contentShape(Rectangle())
-        // 核心丝滑手势：在整个变焦轮区域滑动，直接以 0.1x 精度线性连续调焦，绝无任何手势冲突！
-        .gesture(
-            DragGesture(minimumDistance: 0)
+        // 高灵敏即时增量位移滑动引擎：彻底杜绝死区与卡顿
+        .highPriorityGesture(
+            DragGesture(minimumDistance: 1)
                 .onChanged { value in
-                    if dragAccumulatedOffset == 0.0 {
-                        dragInitialZoom = cameraManager.currentZoom
-                        dragAccumulatedOffset = value.translation.width
+                    let currentX = value.location.x
+                    if let lastX = lastDragLocationX {
+                        let diff = currentX - lastX
+                        // 灵敏度阻尼换算：手指滑动约 7.5 个点步进 0.1x
+                        let step = -diff / 75.0
+                        let target = max(cameraManager.minZoom, min(cameraManager.currentZoom + step, cameraManager.maxZoom))
+                        let rounded = (target * 10.0).rounded() / 10.0
+                        if rounded != cameraManager.currentZoom {
+                            selectionFeedback.selectionChanged()
+                            cameraManager.setZoom(factor: rounded)
+                        }
                     }
-                    
-                    // 水平位移灵敏度计算：每约 10 个像素平滑步进 0.1x
-                    let delta = -value.translation.width / 95.0
-                    let rawTarget = dragInitialZoom + delta
-                    let clamped = max(cameraManager.minZoom, min(rawTarget, cameraManager.maxZoom))
-                    let rounded = (clamped * 10.0).rounded() / 10.0
-                    
-                    if rounded != cameraManager.currentZoom {
-                        selectionFeedback.selectionChanged()
-                        cameraManager.setZoom(factor: rounded)
-                    }
+                    lastDragLocationX = currentX
                 }
                 .onEnded { _ in
-                    dragAccumulatedOffset = 0.0
-                    dragInitialZoom = cameraManager.currentZoom
+                    lastDragLocationX = nil
                 }
         )
     }
@@ -725,15 +742,15 @@ public struct CameraView: View {
                 showToast("✓ 照片已保存至系统相册")
             }
         } else {
-            // 视频流程: 60fps 电影滤镜视频录制直出
+            // 视频流程: 60fps 视频录制直出 (若开启了滤镜则带滤镜，若未开启则原生原画直出)
             impactFeedback.impactOccurred()
             if cameraManager.isRecordingVideo {
                 cameraManager.stopRecordingVideo()
-                showToast("✓ 60fps 电影视频已保存至相册")
+                showToast("✓ 60fps 视频已保存至相册")
             } else {
                 cameraManager.startRecordingVideo { recordedURL in
                     if recordedURL != nil {
-                        showToast("✓ 60fps 电影视频已保存至相册")
+                        showToast("✓ 60fps 视频已保存至相册")
                     }
                 }
             }
