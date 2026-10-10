@@ -483,92 +483,93 @@ public struct CameraView: View {
     }
     
     // MARK: - 快门正上方：上半圆弧形连续变焦盘 (Upper Arc Zoom Dial)
-    // 彻底重构手势：基于即时增量位移，无按钮冲突，左右滑动 0.1x 极度丝滑
+    // 拆解轻量级子视图，避免 Swift 编译器类型推导超时
+    private var zoomValueIndicator: some View {
+        ZStack {
+            ArcDialTrackShape()
+                .stroke(Color.white.opacity(0.2), lineWidth: 1.5)
+                .frame(width: 260, height: 28)
+            
+            Text(String(format: "%.1f×", cameraManager.currentZoom))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 3)
+                .background(Color.black.opacity(0.85))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule().stroke(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.7), lineWidth: 1)
+                )
+        }
+        .frame(height: 30)
+    }
+
+    private var zoomPresetsCapsuleRow: some View {
+        HStack(spacing: 12) {
+            zoomPresetButton(label: ".5", val: 0.5)
+            zoomPresetButton(label: "1×", val: 1.0)
+            zoomPresetButton(label: "2", val: 2.0)
+            zoomPresetButton(label: "3", val: 3.0)
+            zoomPresetButton(label: "5", val: 5.0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Color.black.opacity(0.35))
+        .clipShape(Capsule())
+    }
+
+    private func zoomPresetButton(label: String, val: CGFloat) -> some View {
+        let isCurrent = abs(cameraManager.currentZoom - val) < 0.15
+        return Text(label)
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
+            .frame(width: 36, height: 36)
+            .background(isCurrent ? Color.black.opacity(0.85) : Color.black.opacity(0.45))
+            .clipShape(Circle())
+            .overlay(
+                Circle()
+                    .stroke(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.2), lineWidth: isCurrent ? 1.5 : 0.8)
+            )
+            .onTapGesture {
+                selectionFeedback.selectionChanged()
+                cameraManager.setZoom(factor: val)
+            }
+            .rotationEffect(.degrees(uiRotationAngle))
+            .animation(.spring(response: 0.3), value: uiRotationAngle)
+    }
+
+    private var zoomDragGesture: some Gesture {
+        DragGesture(minimumDistance: 1)
+            .onChanged { value in
+                let currentX = value.location.x
+                if let lastX = lastDragLocationX {
+                    let diff = currentX - lastX
+                    let step = -diff / 75.0
+                    let target = max(cameraManager.minZoom, min(cameraManager.currentZoom + step, cameraManager.maxZoom))
+                    let rounded = (target * 10.0).rounded() / 10.0
+                    if rounded != cameraManager.currentZoom {
+                        selectionFeedback.selectionChanged()
+                        cameraManager.setZoom(factor: rounded)
+                    }
+                }
+                lastDragLocationX = currentX
+            }
+            .onEnded { _ in
+                lastDragLocationX = nil
+            }
+    }
+
     private var upperArcZoomDialView: some View {
         VStack(spacing: 4) {
-            // 1. 上半圆拱形微弧导轨与中央高亮倍率
-            ZStack {
-                ArcDialTrackShape()
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1.5)
-                    .frame(width: 260, height: 28)
-                
-                // 中央大号变焦数字指示
-                Text(String(format: "%.1f×", cameraManager.currentZoom))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 3)
-                    .background(Color.black.opacity(0.85))
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule().stroke(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.7), lineWidth: 1)
-                    )
-            }
-            .frame(height: 30)
-            
-            // 2. 快捷对齐与连续滑动焦段胶囊行 (.5, 1×, 2, 3, 5)
-            // 采用 onTapGesture 而非 Button，绝不拦截外层滑动！
-            HStack(spacing: 12) {
-                let quickPresets: [(label: String, val: CGFloat)] = [
-                    (".5", 0.5),
-                    ("1×", 1.0),
-                    ("2", 2.0),
-                    ("3", 3.0),
-                    ("5", 5.0)
-                ]
-                
-                ForEach(quickPresets, id: \.val) { item in
-                    let isCurrent = abs(cameraManager.currentZoom - item.val) < 0.15
-                    Text(item.label)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
-                        .frame(width: 36, height: 36)
-                        .background(isCurrent ? Color.black.opacity(0.85) : Color.black.opacity(0.45))
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.2), lineWidth: isCurrent ? 1.5 : 0.8)
-                        )
-                        .onTapGesture {
-                            selectionFeedback.selectionChanged()
-                            cameraManager.setZoom(factor: item.val)
-                        }
-                        .rotationEffect(.degrees(uiRotationAngle))
-                        .animation(.spring(response: 0.3), value: uiRotationAngle)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Color.black.opacity(0.35))
-            .clipShape(Capsule())
+            zoomValueIndicator
+            zoomPresetsCapsuleRow
         }
         .frame(height: 74)
         .padding(.horizontal, 16)
         .contentShape(Rectangle())
-        // 高灵敏即时增量位移滑动引擎：彻底杜绝死区与卡顿
-        .highPriorityGesture(
-            DragGesture(minimumDistance: 1)
-                .onChanged { value in
-                    let currentX = value.location.x
-                    if let lastX = lastDragLocationX {
-                        let diff = currentX - lastX
-                        // 灵敏度阻尼换算：手指滑动约 7.5 个点步进 0.1x
-                        let step = -diff / 75.0
-                        let target = max(cameraManager.minZoom, min(cameraManager.currentZoom + step, cameraManager.maxZoom))
-                        let rounded = (target * 10.0).rounded() / 10.0
-                        if rounded != cameraManager.currentZoom {
-                            selectionFeedback.selectionChanged()
-                            cameraManager.setZoom(factor: rounded)
-                        }
-                    }
-                    lastDragLocationX = currentX
-                }
-                .onEnded { _ in
-                    lastDragLocationX = nil
-                }
-        )
+        .highPriorityGesture(zoomDragGesture)
     }
-    
+
     // MARK: - 底部专业控制台 (大快门 + 四联控制栏：相机、视频、媒体、设置)
     private var bottomProfessionalDashboard: some View {
         VStack(spacing: 12) {
