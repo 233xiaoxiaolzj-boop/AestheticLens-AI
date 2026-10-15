@@ -800,6 +800,168 @@
         #local-file-input {
             display: none;
         }
+
+        /* 🛠️ AI 诊断与网络设置模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(14px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-card {
+            background: #18181b;
+            border: 1px solid rgba(251, 191, 36, 0.35);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(251, 191, 36, 0.18);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 520px;
+            padding: 22px 26px;
+            color: #f3f4f6;
+            animation: modalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.96) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 12px;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fbbf24;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-close-btn {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 2px 6px;
+            line-height: 1;
+        }
+        .modal-close-btn:hover {
+            color: #fff;
+        }
+        .modal-section {
+            margin-bottom: 16px;
+        }
+        .modal-section label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #d1d5db;
+            margin-bottom: 6px;
+        }
+        .modal-input {
+            width: 100%;
+            padding: 9px 12px;
+            background: #09090b;
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 13px;
+            font-family: monospace;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .modal-input:focus {
+            border-color: #fbbf24;
+        }
+        .btn-group-presets {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .btn-preset {
+            background: #27272a;
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #9ca3af;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-preset:hover, .btn-preset.active {
+            background: #3f3f46;
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.4);
+        }
+        .diag-box {
+            background: #09090b;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            line-height: 1.6;
+            font-family: monospace;
+            max-height: 140px;
+            overflow-y: auto;
+            color: #a1a1aa;
+        }
+        .diag-status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .status-badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+        .status-badge-yellow { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); }
+        .status-badge-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+        .status-badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 14px;
+        }
+        .btn-modal-action {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-modal-cancel {
+            background: #27272a;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #d1d5db;
+        }
+        .btn-modal-primary {
+            background: #fbbf24;
+            border: 1px solid #f59e0b;
+            color: #000;
+        }
+        .btn-modal-primary:hover {
+            background: #f59e0b;
+        }
     </style>
 </head>
 <body>
@@ -828,6 +990,11 @@
             <label>📂 导入本地测试照片</label>
             <button class="btn-action" onclick="document.getElementById('local-file-input').click()">从电脑挑选照片测试 AI</button>
             <input type="file" id="local-file-input" accept="image/*" onchange="handleLocalFileUpload(event)">
+        </div>
+
+        <div class="control-group">
+            <label>⚡ AI 引擎与服务中枢</label>
+            <button class="btn-action" style="border-color: rgba(251, 191, 36, 0.45); color: #fbbf24; font-weight: 700;" onclick="openSettingsModal()">🛠️ AI 状态排查与网络设置</button>
         </div>
 
         <div class="hotkeys-list">
@@ -864,12 +1031,12 @@
 
             <!-- 顶部 HUD 状态栏 -->
             <div class="hud-top">
-                <div class="cloud-badge">
-                    <span class="dot"></span>
-                    <span>Qwen-VL 在线</span>
+                <div class="cloud-badge" id="cloud-badge" onclick="openSettingsModal()" style="cursor:pointer;" title="点击查看 AI 状态与网络配置">
+                    <span class="dot" id="cloud-dot"></span>
+                    <span id="cloud-status-text">自适应探测中...</span>
                 </div>
                 <div class="format-badge">48MP · RAW</div>
-                <button class="gear-btn" title="设置">⚙️</button>
+                <button class="gear-btn" id="gear-btn" onclick="openSettingsModal()" title="设置与 AI 诊断">⚙️</button>
             </div>
 
             <!-- 绿色微光物理水平仪 (60Hz) -->
@@ -1025,9 +1192,254 @@
     </div>
 </div>
 
+<!-- 🛠️ AI 诊断与网络服务中枢设置面板 -->
+<div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)closeSettingsModal()">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3><span>⚡</span> AI 引擎诊断与网络中枢</h3>
+            <button class="modal-close-btn" onclick="closeSettingsModal()">×</button>
+        </div>
+
+        <div class="modal-section">
+            <label>🌐 后端 API 网关地址 (API_BASE)</label>
+            <input type="text" class="modal-input" id="setting-api-base" placeholder="http://127.0.0.1:8000">
+            <div class="btn-group-presets">
+                <button type="button" class="btn-preset" onclick="setApiPreset('http://127.0.0.1:8000')">💻 本地服务 (127.0.0.1:8000)</button>
+                <button type="button" class="btn-preset" onclick="setApiPreset('origin')">🏠 当前主机 (同源域名)</button>
+                <button type="button" class="btn-preset" onclick="setApiPreset('offline')">✈️ 纯前端离线仿真模式</button>
+            </div>
+        </div>
+
+        <div class="modal-section">
+            <label>🔑 阿里云 DashScope API Key (用于在线直通 Qwen-VL-Plus)</label>
+            <input type="password" class="modal-input" id="setting-api-key" placeholder="留空则读取服务端环境变量，或粘贴 sk-xxx 临时调试">
+            <div style="font-size: 11px; color: #71717a; margin-top: 4px;">
+                💡 填入您的 Key 将通过 Header 直通后端，直接调用 Qwen-VL-Plus 多模态大模型进行实时构图！
+            </div>
+        </div>
+
+        <div class="modal-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                <label style="margin-bottom:0;">🩺 AI 与服务端实时诊断报告</label>
+                <button type="button" class="btn-preset" style="color:#fbbf24; border-color:rgba(251,191,36,0.3);" onclick="runAiDiagnostics()">🔍 点击立即诊断排查</button>
+            </div>
+            <div class="diag-box" id="diag-report">
+                点击上方【立即诊断排查】按钮，将实时探测后端连通性、阿里云 DashScope 授权、RTT 往返时延及弹性超时阈值...
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn-modal-action btn-modal-cancel" onclick="closeSettingsModal()">取消</button>
+            <button type="button" class="btn-modal-action btn-modal-primary" onclick="saveSettingsAndReconnect()">保存并重新探测</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    // 云端生产 API 域名 (直接对接我们已上线的生产集群)
-    const API_BASE = "https://aestheticlens-api.onrender.com";
+    // 🌐 智能自适应 API 网关中台 (优先使用当前同源或本地 127.0.0.1:8000，彻底消除远程死锁)
+    function detectDefaultApiBase() {
+        const saved = localStorage.getItem("AestheticLens_ApiBase");
+        if (saved && saved.trim()) return saved.trim();
+        if (window.location.protocol.startsWith("http")) {
+            return window.location.origin;
+        }
+        return "http://127.0.0.1:8000";
+    }
+
+    let API_BASE = detectDefaultApiBase();
+    let customApiKey = localStorage.getItem("AestheticLens_UserApiKey") || "";
+    let currentEngineMode = "detecting"; // "online_ai" | "backend_mock" | "frontend_offline"
+    let currentSceneKey = "sunset";
+
+    // 更新 HUD 顶部 AI 状态胶囊
+    function updateHudBadge(mode, text, dotColor = "#38bdf8") {
+        const badge = document.getElementById("cloud-badge");
+        const dot = document.getElementById("cloud-dot");
+        const textEl = document.getElementById("cloud-status-text");
+        if (!badge || !dot || !textEl) return;
+
+        textEl.innerText = text;
+        dot.style.background = dotColor;
+        dot.style.boxShadow = `0 0 8px ${dotColor}`;
+
+        if (mode === "online_ai") {
+            badge.style.color = "#4ade80";
+            badge.style.borderColor = "rgba(74, 222, 128, 0.4)";
+        } else if (mode === "backend_mock") {
+            badge.style.color = "#facc15";
+            badge.style.borderColor = "rgba(250, 204, 21, 0.4)";
+        } else if (mode === "frontend_offline") {
+            badge.style.color = "#60a5fa";
+            badge.style.borderColor = "rgba(96, 165, 250, 0.4)";
+        } else {
+            badge.style.color = "#d1d5db";
+            badge.style.borderColor = "rgba(255, 255, 255, 0.2)";
+        }
+    }
+
+    // 探针：自检后端微服务与 AI 大模型状态
+    async function checkServerAndAiHealth(isManual = false) {
+        if (API_BASE === "offline") {
+            currentEngineMode = "frontend_offline";
+            updateHudBadge("frontend_offline", "离线极速仿真", "#60a5fa");
+            return { ok: false, mode: "frontend_offline" };
+        }
+
+        updateHudBadge("detecting", "连通性自检中...", "#9ca3af");
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒轻量探测
+
+            // 1. 测试后端健康探针
+            const healthResp = await fetch(`${API_BASE}/api/v1/health`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!healthResp.ok) throw new Error(`HTTP ${healthResp.status}`);
+
+            // 2. 查询 AI 诊断详情
+            let checkUrl = `${API_BASE}/api/v1/vision/check-ai-status`;
+            if (customApiKey) {
+                checkUrl += `?api_key=${encodeURIComponent(customApiKey)}`;
+            }
+
+            const diagResp = await fetch(checkUrl);
+            const diagData = await diagResp.json();
+
+            if (diagData && diagData.data && diagData.data.connectivity) {
+                const conn = diagData.data.connectivity;
+                if (conn.authenticated) {
+                    currentEngineMode = "online_ai";
+                    updateHudBadge("online_ai", `Qwen-VL 在线 (${Math.round(conn.rtt_ms)}ms)`, "#4ade80");
+                    return { ok: true, mode: "online_ai", details: diagData.data };
+                } else {
+                    currentEngineMode = "backend_mock";
+                    updateHudBadge("backend_mock", `本地黄金桩 (${Math.round(conn.rtt_ms || 15)}ms)`, "#facc15");
+                    return { ok: true, mode: "backend_mock", details: diagData.data };
+                }
+            } else {
+                currentEngineMode = "backend_mock";
+                updateHudBadge("backend_mock", "本地微服务在线", "#facc15");
+                return { ok: true, mode: "backend_mock" };
+            }
+
+        } catch (err) {
+            currentEngineMode = "frontend_offline";
+            updateHudBadge("frontend_offline", "离线极速仿真", "#60a5fa");
+            return { ok: false, mode: "frontend_offline", error: err.message };
+        }
+    }
+
+    // 模态框交互控制
+    function openSettingsModal() {
+        document.getElementById("setting-api-base").value = API_BASE;
+        document.getElementById("setting-api-key").value = customApiKey;
+        document.getElementById("settings-modal").classList.add("active");
+        runAiDiagnostics();
+    }
+
+    function closeSettingsModal() {
+        document.getElementById("settings-modal").classList.remove("active");
+    }
+
+    function setApiPreset(val) {
+        if (val === "origin") {
+            document.getElementById("setting-api-base").value = window.location.origin;
+        } else {
+            document.getElementById("setting-api-base").value = val;
+        }
+    }
+
+    async function runAiDiagnostics() {
+        const report = document.getElementById("diag-report");
+        report.innerHTML = `<span style="color:#fbbf24;">⏳ 正在发起实时网络探针与 AI 授权测试...</span>`;
+
+        const testBase = document.getElementById("setting-api-base").value.trim() || API_BASE;
+        const testKey = document.getElementById("setting-api-key").value.trim();
+
+        if (testBase === "offline") {
+            report.innerHTML = `
+                <div class="diag-status-badge status-badge-blue">已启用：纯前端极速仿真模式</div>
+                <div>• 工作机制: 本地 JavaScript 极速计算黄金九宫格与机位指令</div>
+                <div>• 响应速度: 0ms 零延迟，无需安装本地 Python 或 Docker 服务</div>
+            `;
+            return;
+        }
+
+        const t0 = performance.now();
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 3500);
+
+            let checkUrl = `${testBase}/api/v1/vision/check-ai-status`;
+            if (testKey) checkUrl += `?api_key=${encodeURIComponent(testKey)}`;
+
+            const resp = await fetch(checkUrl, { signal: controller.signal });
+            clearTimeout(timer);
+            const totalRtt = Math.round(performance.now() - t0);
+
+            if (!resp.ok) {
+                report.innerHTML = `
+                    <div class="diag-status-badge status-badge-red">❌ 后端响应异常 (HTTP ${resp.status})</div>
+                    <div>• 网关地址: ${testBase}</div>
+                    <div>• 往返耗时: ${totalRtt}ms</div>
+                    <div style="color:#ef4444; margin-top:4px;">请检查后端服务是否启动在指定端口。</div>
+                `;
+                return;
+            }
+
+            const resJson = await resp.json();
+            const conn = resJson.data.connectivity;
+            const isAuth = conn.authenticated;
+            const badgeClass = isAuth ? "status-badge-green" : "status-badge-yellow";
+            const badgeText = isAuth ? "✅ Qwen-VL-Plus 真实在线大模型已连通" : "🟡 后端已连通 · 当前为离线黄金数据桩兜底";
+
+            report.innerHTML = `
+                <div class="diag-status-badge ${badgeClass}">${badgeText}</div>
+                <div>• 网关服务: ${testBase} (健康正常)</div>
+                <div>• 云端大模型: ${resJson.data.vlm_model}</div>
+                <div>• 弹性超时保护: ${resJson.data.timeout_seconds}s (已解除 2.0s 激进熔断)</div>
+                <div>• API Key 状态: ${conn.key_preview} (${conn.message})</div>
+                <div>• 诊断耗时: ${totalRtt}ms (RTT: ${Math.round(conn.rtt_ms || 0)}ms)</div>
+                <div style="color:#10b981; margin-top:6px;">建议操作: ${conn.recommended_action || "随时可点击【✨ AI 构图】进行体验"}</div>
+            `;
+        } catch (e) {
+            const totalRtt = Math.round(performance.now() - t0);
+            report.innerHTML = `
+                <div class="diag-status-badge status-badge-red">⚠️ 后端连接超时/失败 (${e.message})</div>
+                <div>• 目标网关: ${testBase}</div>
+                <div>• 探测耗时: ${totalRtt}ms</div>
+                <div style="color:#f87171; margin-top:4px;">提示: 本地未运行 FastAPI 服务时，系统将自动平滑降级至【纯前端离线仿真引擎】，体验零卡顿。若需调试后端，请在 code 目录运行 <code>python -m uvicorn app.main:app --reload</code>。</div>
+            `;
+        }
+    }
+
+    async function saveSettingsAndReconnect() {
+        const newBase = document.getElementById("setting-api-base").value.trim();
+        const newKey = document.getElementById("setting-api-key").value.trim();
+
+        if (newBase) {
+            API_BASE = newBase;
+            localStorage.setItem("AestheticLens_ApiBase", API_BASE);
+        }
+        customApiKey = newKey;
+        if (newKey) {
+            localStorage.setItem("AestheticLens_UserApiKey", newKey);
+        } else {
+            localStorage.removeItem("AestheticLens_UserApiKey");
+        }
+
+        simulatorJwt = null; // 重置令牌以重新获取
+        closeSettingsModal();
+        await checkServerAndAiHealth(true);
+    }
+
+    // 页面加载后自动执行健康自检
+    window.addEventListener("DOMContentLoaded", () => {
+        checkServerAndAiHealth();
+    });
 
     let currentZoom = 1.0;
     let isFlipped = false;
@@ -1053,6 +1465,7 @@
 
     // 切换场景
     function changeScene(scene) {
+        currentSceneKey = scene;
         const img = document.getElementById("viewfinder-img");
         const video = document.getElementById("viewfinder-video");
 
@@ -1469,26 +1882,94 @@
         }
     }
 
-    // ✨ 触发真实 AI 智能构图分析 (开启 60Hz 实时动作指挥)
-    function triggerAIAnalysis() {
+    // 纯前端离线美学构图与机位指令引擎 (0ms 零延迟极速出框，杜绝卡顿)
+    function runFrontendOfflineComposition(reason = "") {
         const btnText = document.getElementById("ai-btn-text");
-        btnText.innerText = "Qwen-VL 深度透视构图中...";
         const pill = document.getElementById("coach-pill");
         const crop = document.getElementById("ar-crop-box");
         const ring = document.getElementById("ar-target-ring");
-        const liveReticle = document.getElementById("ar-live-reticle");
+
+        isRealtimeGuiding = true;
+        btnText.innerText = "AI 实时指挥中 (移动鼠标体验)";
+
+        let box = { xmin: 0.15, ymin: 0.12, xmax: 0.85, ymax: 0.82 };
+        let tip = "三分法则构图平衡 · 水平居中主体";
+
+        if (currentSceneKey === "sunset") {
+            box = { xmin: 0.18, ymin: 0.10, xmax: 0.82, ymax: 0.78 };
+            tip = "压低机位后退一步 · 三分人像视线留白";
+            selectLut("落日暖调");
+        } else if (currentSceneKey === "cyber") {
+            box = { xmin: 0.12, ymin: 0.18, xmax: 0.88, ymax: 0.82 };
+            tip = "镜头上抬对准霓虹倒影 · 强化冷暖青橙反差";
+            selectLut("赛博青橙");
+        } else if (currentSceneKey === "architecture") {
+            box = { xmin: 0.10, ymin: 0.14, xmax: 0.90, ymax: 0.86 };
+            tip = "水平校正镜头 · 对齐建筑中轴纵深透视线";
+            selectLut("德味黑白");
+        } else if (currentSceneKey === "street") {
+            box = { xmin: 0.14, ymin: 0.15, xmax: 0.86, ymax: 0.85 };
+            tip = "捕捉视线交汇动势 · 保持地平线平稳";
+            selectLut("纯净清透");
+        }
+
+        targetCropNorm = box;
+        targetCenterNorm = {
+            x: (box.xmin + box.xmax) / 2.0,
+            y: (box.ymin + box.ymax) / 2.0
+        };
+
+        // 投影 AR 黄金框与中心目标圆环
+        crop.style.display = "block";
+        crop.style.left = (box.xmin * 100) + "%";
+        crop.style.top = (box.ymin * 100) + "%";
+        crop.style.width = ((box.xmax - box.xmin) * 100) + "%";
+        crop.style.height = ((box.ymax - box.ymin) * 100) + "%";
+
+        ring.style.display = "block";
+        ring.style.left = (targetCenterNorm.x * 100) + "%";
+        ring.style.top = (targetCenterNorm.y * 100) + "%";
+
+        const prefix = reason ? `[${reason}] ` : (currentEngineMode === "frontend_offline" ? "[离线引擎] " : "");
+        document.getElementById("coach-text").innerText = `${prefix}${tip}`;
+        document.getElementById("coach-icon").innerText = "🎯";
+        pill.style.opacity = 1;
+    }
+
+    // ✨ 触发 AI 智能构图分析 (带超时熔断保护与真实 AI 链路透出)
+    async function triggerAIAnalysis() {
+        const btnText = document.getElementById("ai-btn-text");
+        btnText.innerText = "AI 深度透视构图中...";
+        const pill = document.getElementById("coach-pill");
+        const crop = document.getElementById("ar-crop-box");
+        const ring = document.getElementById("ar-target-ring");
+
+        // 如果是纯离线模式，立即执行毫秒级离线引擎
+        if (currentEngineMode === "frontend_offline" || API_BASE === "offline") {
+            runFrontendOfflineComposition();
+            return;
+        }
 
         const base64 = captureCurrentFrameBase64();
+        const tStart = performance.now();
 
-        // 确保具备合法 JWT Token
-        ensureSimulatorToken().then(token => {
-            // 呼叫后端规范 API
-            fetch(`${API_BASE}/api/v1/vision/analyze-composition`, {
+        try {
+            const token = await ensureSimulatorToken();
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6500); // 6.5s 前端保护阈值
+
+            const reqHeaders = {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            };
+            if (customApiKey) {
+                reqHeaders["X-Dashscope-Api-Key"] = customApiKey;
+            }
+
+            const response = await fetch(`${API_BASE}/api/v1/vision/analyze-composition`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
+                headers: reqHeaders,
+                signal: controller.signal,
                 body: JSON.stringify({
                     client_version: "2.0.0",
                     device_info: {
@@ -1499,31 +1980,30 @@
                     image_meta: { width: 720, height: 960, format: "jpeg" },
                     image_base64: base64
                 })
-            })
-            .then(res => res.json())
-            .then(res => {
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`后端返回状态 HTTP ${response.status}`);
+            }
+
+            const res = await response.json();
+            const elapsedMs = Math.round(performance.now() - tStart);
+
+            if (res.code === 200 && res.data && res.data.composition_guidance) {
                 isRealtimeGuiding = true;
                 btnText.innerText = "AI 实时指挥中 (移动鼠标体验)";
-                
-                let box = { xmin: 0.15, ymin: 0.12, xmax: 0.85, ymax: 0.82 };
-                let tip = "请跟随实时指示移动手机/鼠标";
-                
-                if (res.data && res.data.composition_guidance) {
-                    const guidance = res.data.composition_guidance;
-                    box = guidance.suggested_crop_box;
-                    tip = guidance.coach_tip;
-                    if (res.data.filter_recommendation) {
-                        selectLut(res.data.filter_recommendation.preset_name_zh);
-                    }
-                }
-                
+
+                const guidance = res.data.composition_guidance;
+                const box = guidance.suggested_crop_box;
+                const diag = res.data.diagnostics;
+
                 targetCropNorm = box;
                 targetCenterNorm = {
                     x: (box.xmin + box.xmax) / 2.0,
                     y: (box.ymin + box.ymax) / 2.0
                 };
-                
-                // 投影 AR 黄金框与中心目标圆环
+
                 crop.style.display = "block";
                 crop.style.left = (box.xmin * 100) + "%";
                 crop.style.top = (box.ymin * 100) + "%";
@@ -1534,52 +2014,63 @@
                 ring.style.left = (targetCenterNorm.x * 100) + "%";
                 ring.style.top = (targetCenterNorm.y * 100) + "%";
 
-                document.getElementById("coach-text").innerText = "已锁定最佳构图！请移动鼠标对准中心";
+                if (res.data.filter_recommendation) {
+                    selectLut(res.data.filter_recommendation.preset_name_zh);
+                }
+
+                let badgeNotice = "";
+                if (diag && diag.is_real_ai) {
+                    badgeNotice = `[✨ Qwen-VL 在线 ${Math.round(diag.latency_ms)}ms] `;
+                    updateHudBadge("online_ai", `Qwen-VL 在线 (${Math.round(diag.latency_ms)}ms)`, "#4ade80");
+                } else if (diag) {
+                    badgeNotice = `[⚡ 本地黄金桩 ${Math.round(diag.latency_ms)}ms] `;
+                    updateHudBadge("backend_mock", `本地黄金桩 (${Math.round(diag.latency_ms)}ms)`, "#facc15");
+                } else {
+                    badgeNotice = `[耗时 ${elapsedMs}ms] `;
+                }
+
+                document.getElementById("coach-text").innerText = `${badgeNotice}${guidance.coach_tip}`;
                 document.getElementById("coach-icon").innerText = "🎯";
                 pill.style.opacity = 1;
-            })
-            .catch(err => {
-                isRealtimeGuiding = true;
-                btnText.innerText = "AI 实时指挥中 (移动鼠标体验)";
-                
-                targetCropNorm = { xmin: 0.15, ymin: 0.15, xmax: 0.85, ymax: 0.85 };
-                targetCenterNorm = { x: 0.5, y: 0.5 };
-                
-                crop.style.display = "block";
-                crop.style.left = "15%";
-                crop.style.top = "15%";
-                crop.style.width = "70%";
-                crop.style.height = "70%";
+                return;
+            }
 
-                ring.style.display = "block";
-                ring.style.left = "50%";
-                ring.style.top = "50%";
-
-                document.getElementById("coach-text").innerText = "已锁定最佳构图！请移动鼠标对准中心";
-                document.getElementById("coach-icon").innerText = "🎯";
-                pill.style.opacity = 1;
-            });
-        });
+            // 返回格式非预期时兜底
+            runFrontendOfflineComposition("格式兼容");
+        } catch (err) {
+            console.warn("[AestheticLens] 后端分析超时或异常，平滑降级:", err);
+            const isTimeout = err.name === "AbortError" || err.message.includes("aborted");
+            runFrontendOfflineComposition(isTimeout ? "网络超时降级" : "服务降级");
+        }
     }
 
-    // 获取或换发合法 JWT 令牌
+    // 获取或换发合法 JWT 令牌 (带 2.5s 超时保护)
     let simulatorJwt = null;
-    function ensureSimulatorToken() {
-        if (simulatorJwt) return Promise.resolve(simulatorJwt);
-        return fetch(`${API_BASE}/api/v1/auth/device-register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ device_id: "sim_" + Date.now(), client_version: "2.0.0" })
-        })
-        .then(res => res.json())
-        .then(res => {
-            if (res.data && res.data.token) {
-                simulatorJwt = res.data.token;
+    async function ensureSimulatorToken() {
+        if (simulatorJwt) return simulatorJwt;
+        if (API_BASE === "offline") return "mock_token_offline";
+
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 2500);
+
+            const res = await fetch(`${API_BASE}/api/v1/auth/device-register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                signal: controller.signal,
+                body: JSON.stringify({ device_id: "sim_" + Date.now(), client_version: "2.0.0" })
+            });
+            clearTimeout(timer);
+
+            const rJson = await res.json();
+            if (rJson.data && rJson.data.token) {
+                simulatorJwt = rJson.data.token;
                 return simulatorJwt;
             }
-            return "mock-token-debug";
-        })
-        .catch(() => "mock-token-debug");
+        } catch (e) {
+            console.warn("JWT 获取超时/降级:", e);
+        }
+        return "mock-token-debug";
     }
 
     // 快门拍照并进入调色工作台
@@ -1592,7 +2083,8 @@
         }, 120);
     }
 
-    function openRetouch() {
+    // 拍后调色工作台 (带超时保护与场景离线专业配方)
+    async function openRetouch() {
         const sheet = document.getElementById("retouch-sheet");
         const retouchImg = document.getElementById("retouch-img");
         const currentSrc = document.getElementById("viewfinder-img").src;
@@ -1601,39 +2093,92 @@
         sheet.classList.add("active");
         updateGrading();
 
-        // 真实请求云端拍后调色诊断
+        document.getElementById("ai-critique-text").innerText = "正在分析画面光影层次与美学风格...";
+
+        // 离线备选配方
+        const fallbackRecipes = {
+            sunset: {
+                title: "落日暖调胶片",
+                critique: "逆光人物面部欠曝，通过微提暗部还原发丝细节，压制高光锁住浓郁晚霞。",
+                p: { exposure: 0.15, contrast: 0.10, temperature: 14.0, saturation: 0.05 }
+            },
+            cyber: {
+                title: "赛博青橙夜景",
+                critique: "高对比夜景下压制动态高光溢出，强化冷暖对比，呈现电影级青橙通透反差。",
+                p: { exposure: 0.08, contrast: 0.22, temperature: -8.0, saturation: 0.12 }
+            },
+            architecture: {
+                title: "德味高反差黑白",
+                critique: "提炼建筑纵深几何肌理，拉开明暗反差，去除色彩杂讯强化纯粹光影。",
+                p: { exposure: 0.05, contrast: 0.25, temperature: 0.0, saturation: -0.80 }
+            },
+            street: {
+                title: "清透纪实人文",
+                critique: "画面主体光影柔和，色温微暖，高光保护良好，建议维持胶片自然质感。",
+                p: { exposure: 0.10, contrast: 0.08, temperature: 3.0, saturation: 0.06 }
+            }
+        };
+
+        const currentRecipe = fallbackRecipes[currentSceneKey] || fallbackRecipes.sunset;
+
+        if (currentEngineMode === "frontend_offline" || API_BASE === "offline") {
+            applyRecipeToUI(currentRecipe.title, currentRecipe.critique, currentRecipe.p);
+            return;
+        }
+
         const base64 = captureCurrentFrameBase64();
-        ensureSimulatorToken().then(token => {
-            fetch(`${API_BASE}/api/v1/retouch/analyze-and-grade`, {
+        try {
+            const token = await ensureSimulatorToken();
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 4500);
+
+            const reqHeaders = {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            };
+            if (customApiKey) {
+                reqHeaders["X-Dashscope-Api-Key"] = customApiKey;
+            }
+
+            const resp = await fetch(`${API_BASE}/api/v1/retouch/analyze-and-grade`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
+                headers: reqHeaders,
+                signal: controller.signal,
                 body: JSON.stringify({
                     client_version: "2.0.0",
                     photo_id: "sim_photo_" + Date.now(),
                     image_meta: { width: 1080, height: 1440, format: "jpeg" },
                     image_base64: base64
                 })
-            })
-            .then(res => res.json())
-            .then(res => {
-                if (res.data) {
-                    document.getElementById("ai-critique-text").innerText = res.data.aesthetic_diagnosis.overall_critique;
-                    document.getElementById("recipe-style-title").innerText = res.data.aesthetic_diagnosis.style_name_zh;
-                    const p = res.data.recommended_recipe.parameters;
-                    document.getElementById("sl-exposure").value = p.exposure;
-                    document.getElementById("sl-contrast").value = p.contrast;
-                    document.getElementById("sl-temp").value = p.temperature;
-                    document.getElementById("sl-sat").value = p.saturation;
-                    updateGrading();
-                }
-            })
-            .catch(err => {
-                document.getElementById("ai-critique-text").innerText = "画面主体光影柔和，色温微暖，高光保护良好，建议维持胶片质感。";
             });
-        });
+            clearTimeout(timer);
+
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const res = await resp.json();
+
+            if (res.data && res.data.aesthetic_diagnosis && res.data.recommended_recipe) {
+                const diag = res.data.aesthetic_diagnosis;
+                const p = res.data.recommended_recipe.parameters;
+                applyRecipeToUI(diag.style_name_zh, diag.overall_critique, p);
+                return;
+            }
+            throw new Error("Invalid response");
+        } catch (e) {
+            console.warn("调色云端分析降级:", e);
+            applyRecipeToUI(currentRecipe.title, `[离线配方] ${currentRecipe.critique}`, currentRecipe.p);
+        }
+    }
+
+    function applyRecipeToUI(styleTitle, critiqueText, p) {
+        document.getElementById("recipe-style-title").innerText = styleTitle;
+        document.getElementById("ai-critique-text").innerText = critiqueText;
+        if (p) {
+            document.getElementById("sl-exposure").value = p.exposure ?? 0;
+            document.getElementById("sl-contrast").value = p.contrast ?? 0;
+            document.getElementById("sl-temp").value = p.temperature ?? 0;
+            document.getElementById("sl-sat").value = p.saturation ?? 0;
+        }
+        updateGrading();
     }
 
     function closeRetouch() {

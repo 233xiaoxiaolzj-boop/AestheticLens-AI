@@ -799,7 +799,15 @@ public final class APIClient: ObservableObject {
             
             // 3. 构建阿里云 DashScope (Qwen-VL-Plus) 官方标准请求
             let rawKey = self.aliyunApiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-            let activeKey = rawKey.isEmpty ? self.defaultDashscopeKey : rawKey
+            
+            // 若用户未在设置中配置 API Key，直接秒级启动高精度端侧 Apple Vision 多维感知引擎，杜绝无效网络等待与超时卡顿
+            guard !rawKey.isEmpty else {
+                print("[APIClient] 未检测到用户自定义 DashScope API Key，秒级启动端侧 Apple Vision 真实多维场景解构")
+                let fallback = self.generateDynamicLocalVisionExploration(image: image, visionData: visionData, pitch: currentPitch, roll: currentRoll)
+                DispatchQueue.main.async { completion(fallback) }
+                return
+            }
+            let activeKey = rawKey
             
             guard let url = URL(string: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions") else {
                 let fallback = self.generateDynamicLocalVisionExploration(image: image, visionData: visionData, pitch: currentPitch, roll: currentRoll)

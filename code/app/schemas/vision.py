@@ -70,7 +70,16 @@ class FilterRecommendation(BaseModel):
     recommended_intensity: float = 0.85
     color_adjustments: Optional[ColorAdjustments] = None
 
+class AIDiagnostics(BaseModel):
+    is_real_ai: bool = Field(False, description="是否真实调用了在线大模型")
+    ai_source: str = Field(..., description="调用源标识，如 qwen-vl-plus:online / fallback-mock:no_key / fallback-mock:timeout")
+    model_name: str = Field("golden-mock-engine", description="生效模型名称")
+    latency_ms: float = Field(0.0, description="端到端处理耗时(毫秒)")
+    detail: Optional[str] = Field(None, description="详细诊断或降级原因")
+
 class AnalyzeCompositionData(BaseModel):
     scene_analysis: SceneAnalysis
     composition_guidance: CompositionGuidance
     filter_recommendation: FilterRecommendation
+    diagnostics: Optional[AIDiagnostics] = Field(None, description="AI 调用诊断监控元数据")
+

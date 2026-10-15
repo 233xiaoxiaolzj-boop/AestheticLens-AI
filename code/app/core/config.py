@@ -1,5 +1,27 @@
 import os
+from pathlib import Path
 from typing import Optional
+
+def _load_dotenv_file():
+    """轻量加载本地 .env 文件环境变量 (无需额外三方依赖)"""
+    current = Path(__file__).resolve()
+    for parent in [current.parent, current.parents[1], current.parents[2]]:
+        env_file = parent / ".env"
+        if env_file.exists():
+            try:
+                with open(env_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k, v = k.strip(), v.strip().strip("'\"")
+                            if k not in os.environ:
+                                os.environ[k] = v
+            except Exception:
+                pass
+            break
+
+_load_dotenv_file()
 
 class Settings:
     PROJECT_NAME: str = "AestheticLens-AI Cloud Gateway"
@@ -26,6 +48,8 @@ class Settings:
     
     # 阿里云百炼
     DASHSCOPE_API_KEY: Optional[str] = os.getenv("DASHSCOPE_API_KEY")
+    # 视觉大模型弹性超时时间 (默认 6.0 秒，避免多模态推理生成被 2.0s 误熔断)
+    VLM_TIMEOUT_SECONDS: float = float(os.getenv("VLM_TIMEOUT_SECONDS", "6.0"))
 
     def validate_production_secrets(self) -> None:
         """生产环境启动硬安全断言检查"""
