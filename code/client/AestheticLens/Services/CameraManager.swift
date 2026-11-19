@@ -731,6 +731,21 @@ public final class CameraManager: NSObject, ObservableObject, AVCaptureVideoData
         }
     }
     
+    // MARK: - 最新一帧提取 (修正：videoOutput 已按设备方向旋转过，直接输出正向 UIImage 供 AI/Vision 使用)
+    public func captureLatestPreviewFrame() -> UIImage? {
+        frameBufferLock.lock()
+        guard let pixelBuffer = latestVideoPixelBuffer else {
+            frameBufferLock.unlock()
+            return nil
+        }
+        frameBufferLock.unlock()
+        
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let context = CIContext(options: [.useSoftwareRenderer: false])
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
+        return UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
+    }
+
     // MARK: - 实时录像 (Metal 3D LUT 上色 + 60fps 硬件编码写入，彻底解耦出 sessionQueue)
     public func startRecordingVideo(completion: @escaping (URL?, String?) -> Void) {
         guard !isRecordingVideo, !isStoppingVideo else { return }
