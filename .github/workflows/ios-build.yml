@@ -8,7 +8,7 @@ on:
 jobs:
   build-ipa:
     name: Build Native iOS App (.ipa)
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 30
 
     steps:
