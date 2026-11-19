@@ -1057,7 +1057,6 @@ struct ZoomDialView: View {
     
     // 滑动展开态：对数刻度尺 (居中金色指示针 + 平滑移动刻度线)
     private var logarithmicRulerView: some View {
-    private var logarithmicRulerView: some View {
         VStack(spacing: 4) {
             Text(String(format: "%.1f×", displayZoom))
                 .font(.system(size: 16, weight: .bold, design: .rounded))
