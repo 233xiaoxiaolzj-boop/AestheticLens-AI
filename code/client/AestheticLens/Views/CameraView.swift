@@ -1,19 +1,48 @@
 import SwiftUI
 import AVFoundation
+import Photos
 
-/// 工业级专业全栈电影相机 UI
-/// 1. 默认原镜头：启动时保持 100% 纯净原相机，滤镜列表包含 [00-原画]，按需开启
-/// 2. 变焦轮重构：彻底解决卡住划不动，采用高灵敏增量位移滑动引擎，0.1x 丝滑微调
-/// 3. AI 实时场景分析：真实感知镜头场景与焦点，呈现人物最佳机位与阳光拍摄语言
-/// 4. 全系统横屏拍摄自适应与 4:3 几何保真
+/// 支持的取景与成片画幅比例
+public enum CameraAspectRatio: String, CaseIterable {
+    case ratio4x3 = "4:3"
+    case ratio16x9 = "16:9"
+    case ratio1x1 = "1:1"
+    
+    public var widthOverHeight: CGFloat {
+        switch self {
+        case .ratio4x3: return 3.0 / 4.0
+        case .ratio16x9: return 9.0 / 16.0
+        case .ratio1x1: return 1.0
+        }
+    }
+    
+    public var heightOverWidth: CGFloat {
+        return 1.0 / widthOverHeight
+    }
+    
+    public func next() -> CameraAspectRatio {
+        switch self {
+        case .ratio4x3: return .ratio16x9
+        case .ratio16x9: return .ratio1x1
+        case .ratio1x1: return .ratio4x3
+        }
+    }
+}
+
+/// 专业全栈电影相机主界面
 public struct CameraView: View {
     @StateObject private var cameraManager = CameraManager.shared
-    @StateObject private var motionManager = MotionManager.shared
     @StateObject private var compositionEngine = RealtimeCompositionEngine.shared
-    private let apiClient = APIClient.shared
+    @Environment(\.scenePhase) private var scenePhase
     
-    // MARK: - 模式与滤镜状态 (默认打开为原生原镜头，不叠加任何滤镜)
+    // 与 SettingsView 持久化联动
+    @AppStorage("showLevelGauge") private var showLevelGauge: Bool = true
+    @AppStorage("showAspectGrid") private var showAspectGrid: Bool = false
+    @AppStorage("preserveOriginalHDR") private var preserveOriginalHDR: Bool = true
+    
+    // MARK: - 模式、画幅与滤镜状态 (默认打开为原生 4:3 原画镜头)
     @State private var captureMode: Int = 0
+    @State private var photoAspectRatio: CameraAspectRatio = .ratio4x3
     @State private var activeLutName: String = "00-原画"
     @State private var isFilmstripExpanded: Bool = true
     @State private var isLutFilterEnabled: Bool = false
@@ -23,19 +52,14 @@ public struct CameraView: View {
     @State private var showSettings: Bool = false
     @State private var showMediaGallery: Bool = false
     @State private var toastMessage: String? = nil
-    
-    // AI 深度场景分析卡片展开状态
     @State private var showSceneAnalysisCard: Bool = false
-
-    // MARK: - 最新成片状态 (用于在 App 内部直接查看最新拍摄的带滤镜大图)
+    
+    // MARK: - 最新成片轻量缓存 (最大 1440px，低内存占用)
     @State private var lastCapturedPhoto: UIImage? = nil
-    @State private var lastCapturedFilterName: String = "00-原画"
+    @State private var lastCapturedFilterName: String = "00-原画 (RAW)"
     @State private var lastCapturedZoomFactor: CGFloat = 1.0
     @State private var lastCapturedDate: Date = Date()
     @State private var thumbnailScaleEffect: CGFloat = 1.0
-    
-    // 变焦连续手势状态 (基于即时增量位移，彻底杜绝死区卡顿)
-    @State private var lastDragLocationX: CGFloat? = nil
     
     // 原生触觉反馈
     private let selectionFeedback = UISelectionFeedbackGenerator()
@@ -49,7 +73,11 @@ public struct CameraView: View {
     
     public init() {}
     
-    // 横屏拍摄自适应旋转角度
+    private var activeAspectRatio: CameraAspectRatio {
+        captureMode == 1 ? .ratio16x9 : photoAspectRatio
+    }
+    
+    // 横屏拍摄自适应旋转角度 (驱动按钮、Icon 原地旋转)
     private var uiRotationAngle: Double {
         switch cameraManager.deviceOrientation {
         case .landscapeLeft:
@@ -64,79 +92,122 @@ public struct CameraView: View {
     }
     
     public var body: some View {
-        ZStack {
-            // 专业沉浸纯黑底色
-            Color.black.ignoresSafeArea()
+        GeometryReader { rootGeo in
+            let rootW = rootGeo.size.width
+            let rootH = rootGeo.size.height
+            let isOverlayLayout = (activeAspectRatio == .ratio16x9)
             
-            VStack(spacing: 0) {
-                // 1. 顶部专业 HUD
-                topProfessionalHUD
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .zIndex(10)
+            // 按当前屏幕可用宽高精确等比计算取景器尺寸，避免小屏挤压或拉伸
+            let maxStandardH = max(240, rootH - 270)
+            let vfSize: CGSize = {
+                if isOverlayLayout {
+                    let targetW = min(rootW, rootH * activeAspectRatio.widthOverHeight)
+                    return CGSize(width: targetW, height: targetW * activeAspectRatio.heightOverWidth)
+                } else {
+                    let idealH = rootW * activeAspectRatio.heightOverWidth
+                    let finalH = min(idealH, maxStandardH)
+                    let finalW = finalH * activeAspectRatio.widthOverHeight
+                    return CGSize(width: finalW, height: finalH)
+                }
+            }()
+            
+            ZStack {
+                Color.black.ignoresSafeArea()
                 
-                Spacer(minLength: 4)
-                
-                // 2. 取景器中枢 (4:3 标准保真几何视口，严防拉伸变形)
-                ZStack(alignment: .trailing) {
-                    viewfinderContainer
-                    
-                    // 右侧悬浮 35mm 电影胶卷滑轨
-                    filmstripLutOverlayRail
-                        .padding(.trailing, 10)
-                    
-                    // AI 深度场景分析语言浮动卡片
-                    if showSceneAnalysisCard && compositionEngine.state != .inactive {
-                        aiSceneAnalysisOverlayCard
-                            .padding(.horizontal, 14)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                if isOverlayLayout {
+                    // 16:9 宽屏 / 视频沉浸模式：取景器居中满画幅展示，上下控制区悬浮于边缘
+                    ZStack {
+                        viewfinderWithOverlays(size: vfSize)
+                            .frame(width: vfSize.width, height: vfSize.height)
+                            .clipped()
+                            .animation(.easeInOut(duration: 0.22), value: activeAspectRatio)
+                        
+                        VStack(spacing: 0) {
+                            topProfessionalHUD
+                                .padding(.horizontal, 16)
+                                .padding(.top, 6)
+                                .padding(.bottom, 10)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.black.opacity(0.65), Color.black.opacity(0.0)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                            
+                            Spacer()
+                            
+                            VStack(spacing: 6) {
+                                ZoomDialView(cameraManager: cameraManager, uiRotationAngle: uiRotationAngle)
+                                bottomProfessionalDashboard
+                            }
+                            .padding(.top, 12)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.black.opacity(0.0), Color.black.opacity(0.78)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    // 4:3 / 1:1 专业黑边取景布局：取景框绝不被控件遮挡或压缩
+                    VStack(spacing: 0) {
+                        topProfessionalHUD
+                            .padding(.horizontal, 16)
+                            .padding(.top, 4)
+                            .zIndex(10)
+                        
+                        Spacer(minLength: 4)
+                        
+                        viewfinderWithOverlays(size: vfSize)
+                            .frame(width: vfSize.width, height: vfSize.height)
+                            .clipped()
+                            .animation(.easeInOut(duration: 0.22), value: activeAspectRatio)
+                        
+                        Spacer(minLength: 4)
+                        
+                        ZoomDialView(cameraManager: cameraManager, uiRotationAngle: uiRotationAngle)
+                            .zIndex(20)
+                        
+                        bottomProfessionalDashboard
+                            .zIndex(10)
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: UIScreen.main.bounds.width * (4.0 / 3.0))
-                .clipped()
                 
-                Spacer(minLength: 4)
-                
-                // 3. 快门正上方：上半圆弧形连续变焦盘 (0.1x 丝滑增量滑动，绝不卡住)
-                upperArcZoomDialView
-                    .zIndex(20)
-                
-                // 4. 底部专业控制台 (大快门 + 四联导航)
-                bottomProfessionalDashboard
-                    .zIndex(10)
-            }
-            
-            // 曝光快门闪光反馈
-            if isFlashing {
-                Color.white
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-            }
-            
-            // 浮动 Toast 提示
-            if let toast = toastMessage {
-                VStack {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.35))
-                        Text(toast)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.85))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
-                    .padding(.top, 48)
-                    .rotationEffect(.degrees(uiRotationAngle))
-                    .animation(.spring(response: 0.3), value: uiRotationAngle)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    
-                    Spacer()
+                // 曝光快门闪光反馈
+                if isFlashing {
+                    Color.white
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
                 }
-                .zIndex(100)
+                
+                // 浮动 Toast 提示
+                if let toast = toastMessage {
+                    VStack {
+                        HStack(spacing: 8) {
+                            Image(systemName: toast.contains("失败") || toast.contains("权限") ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                .foregroundColor(toast.contains("失败") || toast.contains("权限") ? .orange : Color(red: 1.0, green: 0.85, blue: 0.35))
+                            Text(toast)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.black.opacity(0.85))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
+                        .padding(.top, 52)
+                        .rotationEffect(.degrees(uiRotationAngle))
+                        .animation(.spring(response: 0.3), value: uiRotationAngle)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        
+                        Spacer()
+                    }
+                    .zIndex(100)
+                    .allowsHitTesting(false)
+                }
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -145,6 +216,7 @@ public struct CameraView: View {
         .sheet(isPresented: $showMediaGallery) {
             MediaGallerySheet(
                 lastPhoto: lastCapturedPhoto,
+                lastVideoURL: cameraManager.lastRecordedURL,
                 lutName: lastCapturedFilterName,
                 zoomFactor: lastCapturedZoomFactor,
                 captureDate: lastCapturedDate
@@ -159,28 +231,97 @@ public struct CameraView: View {
         .onDisappear {
             cameraManager.stopSession()
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                cameraManager.checkPermissions()
+                cameraManager.startSession()
+            case .background:
+                cameraManager.stopSession()
+            default:
+                break
+            }
+        }
+    }
+    
+    // MARK: - 取景器容器 + 胶卷条 + 权限引导 + AI 卡片
+    @ViewBuilder
+    private func viewfinderWithOverlays(size: CGSize) -> some View {
+        ZStack(alignment: .trailing) {
+            viewfinderContainer(size: size)
+            
+            // 无相机权限引导视图
+            if cameraManager.permissionDenied {
+                VStack(spacing: 14) {
+                    Image(systemName: "camera.fill.badge.ellipsis")
+                        .font(.system(size: 42))
+                        .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                    Text("需要相机权限以开启取景器")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                    Button(action: {
+                        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(settingsURL)
+                        }
+                    }) {
+                        Text("前往系统设置开启")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color(red: 1.0, green: 0.88, blue: 0.35))
+                            .clipShape(Capsule())
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(0.85))
+            }
+            
+            // 右侧悬浮 35mm 电影胶卷滑轨
+            filmstripLutOverlayRail
+                .padding(.trailing, 10)
+            
+            // AI 深度场景分析语言浮动卡片
+            if showSceneAnalysisCard && compositionEngine.state != .inactive {
+                aiSceneAnalysisOverlayCard
+                    .padding(.horizontal, 14)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
     }
     
     // MARK: - 顶部专业 HUD
     private var topProfessionalHUD: some View {
         HStack {
-            // 分辨率与高刷标头
+            // 模式、画幅切换与胶卷指示
             HStack(spacing: 6) {
-                Text(captureMode == 1 ? "4K 60FPS" : "48MP RAW")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                Button(action: {
+                    guard captureMode == 0 else { return }
+                    selectionFeedback.selectionChanged()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        photoAspectRatio = photoAspectRatio.next()
+                    }
+                    showToast("画幅已切换为 \(photoAspectRatio.rawValue)")
+                }) {
+                    HStack(spacing: 4) {
+                        Text(captureMode == 1 ? "16:9 · 60FPS" : "\(activeAspectRatio.rawValue) · 高清")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    }
                     .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Color.white.opacity(0.12))
-                    .cornerRadius(4)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.14))
+                    .cornerRadius(5)
+                }
+                .disabled(captureMode == 1)
                 
-                Text(isLutFilterEnabled ? activeLutName.prefix(2) : "RAW原画")
+                Text(isLutFilterEnabled ? String(activeLutName.prefix(2)) : "RAW原画")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.75))
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 3)
-                    .background(Color.white.opacity(0.08))
-                    .cornerRadius(4)
+                    .foregroundColor(.white.opacity(0.82))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.09))
+                    .cornerRadius(5)
             }
             .rotationEffect(.degrees(uiRotationAngle))
             .animation(.spring(response: 0.3), value: uiRotationAngle)
@@ -199,15 +340,14 @@ public struct CameraView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Color.red.opacity(0.25))
+                .background(Color.red.opacity(0.32))
                 .cornerRadius(6)
                 .rotationEffect(.degrees(uiRotationAngle))
                 .animation(.spring(response: 0.3), value: uiRotationAngle)
             }
             
             Spacer()
-            
-            // ✨ AI 分析 / 探景按钮 (实时识别当前镜头场景，输出真实场景构图指导)
+            // AI 分析按钮
             Button(action: handleAITrigger) {
                 let isEngineActive = (compositionEngine.state != .inactive)
                 let isAnalyzing = (compositionEngine.state == .analyzing)
@@ -239,7 +379,6 @@ public struct CameraView: View {
         }
     }
     
-    // AI 分析点击响应：每次点击均抓取相机最新一帧，对新场景进行即时重新解构分析
     private func handleAITrigger() {
         impactFeedback.impactOccurred()
         compositionEngine.refreshSceneAnalysis(cameraManager: cameraManager)
@@ -248,32 +387,40 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 取景器视口 (4:3 比例保真，带 Metal 上色预览与 AR 构图浮层)
-    private var viewfinderContainer: some View {
-        GeometryReader { proxy in
-            ZStack {
-                // 1. Metal 实时取景 (默认未开启滤镜时直接原镜头直通渲染)
-                MetalView(activePreset: isLutFilterEnabled ? activeLutName : "00-自然原画")
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .contentShape(Rectangle())
-                    .onTapGesture { location in
-                        handleTapToFocus(at: location, in: proxy.size)
-                    }
-                
-                // 2. 60Hz 空间水平仪
+    // MARK: - 取景器视口 (Metal 帧同步预览 + 三分线网格 + 水平仪 + 触控对焦)
+    private func viewfinderContainer(size: CGSize) -> some View {
+        ZStack {
+            // 1. Metal 实时取景 (默认未开启滤镜时直通原生画质，严格 Aspect Fill 不变形)
+            MetalView(activePreset: isLutFilterEnabled ? activeLutName : "00-自然原画")
+                .frame(width: size.width, height: size.height)
+                .contentShape(Rectangle())
+                .onTapGesture { location in
+                    handleTapToFocus(at: location, in: size)
+                }
+            
+            // 2. 可选三分线网格
+            if showAspectGrid {
+                RuleOfThirdsGridOverlay()
+                    .frame(width: size.width, height: size.height)
+                    .allowsHitTesting(false)
+            }
+            
+            // 3. 60Hz 空间水平仪 (受设置控制)
+            if showLevelGauge {
                 LevelGaugeView()
                     .allowsHitTesting(false)
-                
-                // 3. 4D AR 黄金构图目标框与防抖引导准星
-                NavigationOverlayView()
+            }
+            
+            // 4. 4D AR 黄金构图目标框
+            NavigationOverlayView()
+                .allowsHitTesting(false)
+            
+            // 5. 触控对焦框
+            if showFocusRing, let point = focusPoint {
+                focusIndicatorView
+                    .position(point)
+                    .transition(.opacity)
                     .allowsHitTesting(false)
-                
-                // 4. 触控对焦框
-                if showFocusRing, let point = focusPoint {
-                    focusIndicatorView
-                        .position(point)
-                        .transition(.opacity)
-                }
             }
         }
     }
@@ -281,7 +428,6 @@ public struct CameraView: View {
     // MARK: - AI 实时场景深度分析语言浮动卡片
     private var aiSceneAnalysisOverlayCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 卡片头部与来源识别
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkles")
@@ -300,7 +446,7 @@ public struct CameraView: View {
                             .background(Color.white.opacity(0.12))
                             .cornerRadius(3)
                     } else {
-                        Text("端侧视觉神经引擎 · 实时分析")
+                        Text("端侧视觉神经引擎")
                             .font(.system(size: 9, weight: .medium))
                             .foregroundColor(Color(white: 0.85))
                             .padding(.horizontal, 5)
@@ -325,7 +471,6 @@ public struct CameraView: View {
             
             Divider().background(Color.white.opacity(0.15))
             
-            // 1. 当前场景与主体深度分析
             if !compositionEngine.sceneAnalysis.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("🏞️ 场景解构:")
@@ -338,7 +483,6 @@ public struct CameraView: View {
                 }
             }
             
-            // 2. 光线与拍摄技巧分析 (阳光/逆光拍法)
             if !compositionEngine.lightingAndElement.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("☀️ 光影技巧:")
@@ -351,7 +495,6 @@ public struct CameraView: View {
                 }
             }
             
-            // 3. 主体在哪个位置效果最佳 (最佳位置指导)
             if !compositionEngine.placementGuide.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("🎯 最佳机位:")
@@ -364,11 +507,10 @@ public struct CameraView: View {
                 }
             }
             
-            // 底部操作栏：一键推镜与应用胶片
             HStack(spacing: 8) {
                 Button(action: {
                     selectionFeedback.selectionChanged()
-                    cameraManager.setZoom(factor: CGFloat(compositionEngine.recommendedZoom))
+                    cameraManager.rampZoom(to: CGFloat(compositionEngine.recommendedZoom))
                     showToast(String(format: "已推镜至推荐 %.1f×", compositionEngine.recommendedZoom))
                 }) {
                     HStack(spacing: 3) {
@@ -402,7 +544,6 @@ public struct CameraView: View {
                     .cornerRadius(6)
                 }
 
-                // 🔄 重新识别当前场景按钮 (变换镜头后一键刷新)
                 Button(action: {
                     impactFeedback.impactOccurred()
                     compositionEngine.refreshSceneAnalysis(cameraManager: cameraManager)
@@ -433,7 +574,7 @@ public struct CameraView: View {
         .shadow(color: Color.black.opacity(0.6), radius: 10)
     }
     
-    // MARK: - 右侧悬浮 35mm 胶卷选择器 (加入 00-原画，支持一键切换原镜头)
+    // MARK: - 右侧悬浮 35mm 胶卷选择器
     private var filmstripLutOverlayRail: some View {
         VStack(spacing: 8) {
             Button(action: {
@@ -463,13 +604,11 @@ public struct CameraView: View {
                     Button(action: {
                         selectionFeedback.selectionChanged()
                         if preset == "00-原画" {
-                            // 保持原镜头：关闭滤镜直通原生画质
                             isLutFilterEnabled = false
                             activeLutName = "00-原画"
                             MetalRenderer.shared.applyPreset("00-自然原画")
                             showToast("已切回原生原画镜头")
                         } else {
-                            // 按需开启电影风格滤镜
                             isLutFilterEnabled = true
                             let fullName: String
                             switch preset {
@@ -490,7 +629,7 @@ public struct CameraView: View {
                                 .fill(isSelected ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.35))
                                 .frame(width: 24, height: 3)
                             
-                            Text(preset == "00-原画" ? "RAW" : preset.prefix(2))
+                            Text(preset == "00-原画" ? "RAW" : String(preset.prefix(2)))
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                                 .foregroundColor(isSelected ? .black : .white)
                                 .frame(width: 32, height: 26)
@@ -505,108 +644,19 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 快门正上方：上半圆弧形连续变焦盘 (Upper Arc Zoom Dial)
-    // 拆解轻量级子视图，避免 Swift 编译器类型推导超时
-    private var zoomValueIndicator: some View {
-        ZStack {
-            ArcDialTrackShape()
-                .stroke(Color.white.opacity(0.2), lineWidth: 1.5)
-                .frame(width: 260, height: 28)
-            
-            Text(String(format: "%.1f×", cameraManager.currentZoom))
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 3)
-                .background(Color.black.opacity(0.85))
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule().stroke(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.7), lineWidth: 1)
-                )
-        }
-        .frame(height: 30)
-    }
-
-    private var zoomPresetsCapsuleRow: some View {
-        HStack(spacing: 12) {
-            zoomPresetButton(label: ".5", val: 0.5)
-            zoomPresetButton(label: "1×", val: 1.0)
-            zoomPresetButton(label: "2", val: 2.0)
-            zoomPresetButton(label: "3", val: 3.0)
-            zoomPresetButton(label: "5", val: 5.0)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Color.black.opacity(0.35))
-        .clipShape(Capsule())
-    }
-
-    private func zoomPresetButton(label: String, val: CGFloat) -> some View {
-        let isCurrent = abs(cameraManager.currentZoom - val) < 0.15
-        return Text(label)
-            .font(.system(size: 12, weight: .bold))
-            .foregroundColor(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
-            .frame(width: 36, height: 36)
-            .background(isCurrent ? Color.black.opacity(0.85) : Color.black.opacity(0.45))
-            .clipShape(Circle())
-            .overlay(
-                Circle()
-                    .stroke(isCurrent ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.2), lineWidth: isCurrent ? 1.5 : 0.8)
-            )
-            .onTapGesture {
-                selectionFeedback.selectionChanged()
-                cameraManager.setZoom(factor: val)
-            }
-            .rotationEffect(.degrees(uiRotationAngle))
-            .animation(.spring(response: 0.3), value: uiRotationAngle)
-    }
-
-    private var zoomDragGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
-            .onChanged { value in
-                let currentX = value.location.x
-                if let lastX = lastDragLocationX {
-                    let diff = currentX - lastX
-                    let step = -diff / 75.0
-                    let target = max(cameraManager.minZoom, min(cameraManager.currentZoom + step, cameraManager.maxZoom))
-                    let rounded = (target * 10.0).rounded() / 10.0
-                    if rounded != cameraManager.currentZoom {
-                        selectionFeedback.selectionChanged()
-                        cameraManager.setZoom(factor: rounded)
-                    }
-                }
-                lastDragLocationX = currentX
-            }
-            .onEnded { _ in
-                lastDragLocationX = nil
-            }
-    }
-
-    private var upperArcZoomDialView: some View {
-        VStack(spacing: 4) {
-            zoomValueIndicator
-            zoomPresetsCapsuleRow
-        }
-        .frame(height: 74)
-        .padding(.horizontal, 16)
-        .contentShape(Rectangle())
-        .highPriorityGesture(zoomDragGesture)
-    }
-
     // MARK: - 底部专业控制台 (大快门 + 四联控制栏：相机、视频、媒体、设置)
     private var bottomProfessionalDashboard: some View {
-        VStack(spacing: 12) {
-            // 1. 中央核心快门控制行
+        VStack(spacing: 10) {
             HStack {
                 // 左侧：前后摄像头翻转
                 Button(action: {
-                    guard !cameraManager.isSwitchingCamera else { return }
+                    guard !cameraManager.isSwitchingCamera, !cameraManager.isRecordingVideo else { return }
                     impactFeedback.impactOccurred()
                     cameraManager.switchCamera()
                 }) {
                     ZStack {
                         Circle()
-                            .fill(Color.white.opacity(0.12))
+                            .fill(Color.white.opacity(0.14))
                             .frame(width: 44, height: 44)
                         Image(systemName: "arrow.triangle.2.circlepath.camera")
                             .font(.system(size: 18))
@@ -615,23 +665,23 @@ public struct CameraView: View {
                             .animation(.easeInOut(duration: 0.3), value: cameraManager.isSwitchingCamera)
                     }
                 }
-                .disabled(cameraManager.isSwitchingCamera)
+                .disabled(cameraManager.isSwitchingCamera || cameraManager.isRecordingVideo)
+                .opacity(cameraManager.isRecordingVideo ? 0.35 : 1.0)
                 .frame(maxWidth: .infinity)
                 .rotationEffect(.degrees(uiRotationAngle))
                 .animation(.spring(response: 0.3), value: uiRotationAngle)
                 
-                // 中央核心大快门 (拍照 48MP / 视频 60fps)
+                // 中央核心大快门
                 Button(action: handleMainShutterAction) {
                     ZStack {
                         Circle()
                             .stroke(Color.white, lineWidth: 3.5)
-                            .frame(width: 74, height: 74)
+                            .frame(width: 72, height: 72)
                         
                         if captureMode == 0 {
-                            // 相机拍照模式 (白圈)
                             Circle()
                                 .fill(cameraManager.isCapturingPhoto ? Color.gray : Color.white)
-                                .frame(width: 60, height: 60)
+                                .frame(width: 58, height: 58)
                                 .overlay(
                                     Group {
                                         if cameraManager.isCapturingPhoto {
@@ -641,7 +691,6 @@ public struct CameraView: View {
                                     }
                                 )
                         } else {
-                            // 视频录制模式 (红点 / 录制中方块)
                             if cameraManager.isRecordingVideo {
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(Color.red)
@@ -649,7 +698,7 @@ public struct CameraView: View {
                             } else {
                                 Circle()
                                     .fill(Color.red)
-                                    .frame(width: 58, height: 58)
+                                    .frame(width: 56, height: 56)
                             }
                         }
                     }
@@ -660,14 +709,14 @@ public struct CameraView: View {
                 .rotationEffect(.degrees(uiRotationAngle))
                 .animation(.spring(response: 0.3), value: uiRotationAngle)
                 
-                // 右侧：媒体相册快速预览 / 最新拍摄成片大图查看入口
+                // 右侧：媒体预览入口
                 Button(action: {
                     selectionFeedback.selectionChanged()
                     showMediaGallery = true
                 }) {
                     ZStack {
                         Circle()
-                            .fill(Color.white.opacity(0.12))
+                            .fill(Color.white.opacity(0.14))
                             .frame(width: 48, height: 48)
                         
                         if let photo = lastCapturedPhoto {
@@ -693,29 +742,29 @@ public struct CameraView: View {
             }
             .padding(.horizontal, 20)
             
-            // 2. 底部四联专业导航栏：【相机】、【视频】、【媒体】、【设置】
+            // 底部四联导航栏：【相机】、【视频】、【媒体】、【设置】
             HStack(spacing: 0) {
-                // 【相机】(拍照)
                 bottomNavTabButton(
                     title: "相机",
                     systemIcon: "camera.fill",
                     isSelected: captureMode == 0
                 ) {
+                    guard !cameraManager.isRecordingVideo else { return }
                     selectionFeedback.selectionChanged()
-                    withAnimation(.easeInOut(duration: 0.15)) { captureMode = 0 }
+                    withAnimation(.easeInOut(duration: 0.18)) { captureMode = 0 }
+                    cameraManager.setCaptureMode(0)
                 }
                 
-                // 【视频】(60fps 电影级视频录制)
                 bottomNavTabButton(
                     title: "视频",
                     systemIcon: "video.fill",
                     isSelected: captureMode == 1
                 ) {
                     selectionFeedback.selectionChanged()
-                    withAnimation(.easeInOut(duration: 0.15)) { captureMode = 1 }
+                    withAnimation(.easeInOut(duration: 0.18)) { captureMode = 1 }
+                    cameraManager.setCaptureMode(1)
                 }
                 
-                // 【媒体】(相册与回放)
                 bottomNavTabButton(
                     title: "媒体",
                     systemIcon: "square.grid.2x2.fill",
@@ -725,7 +774,6 @@ public struct CameraView: View {
                     showMediaGallery = true
                 }
                 
-                // 【设置】(系统与大模型 API 参数)
                 bottomNavTabButton(
                     title: "设置",
                     systemIcon: "gearshape.fill",
@@ -736,20 +784,19 @@ public struct CameraView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color.white.opacity(0.06))
+            .padding(.vertical, 7)
+            .background(Color.white.opacity(0.08))
             .cornerRadius(16)
             .padding(.horizontal, 16)
             .padding(.bottom, 6)
         }
     }
     
-    // 底部导航单个按钮
     private func bottomNavTabButton(title: String, systemIcon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Image(systemName: systemIcon)
-                    .font(.system(size: 18, weight: isSelected ? .bold : .medium))
+                    .font(.system(size: 17, weight: isSelected ? .bold : .medium))
                     .foregroundColor(isSelected ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color(white: 0.65))
                 
                 Text(title)
@@ -763,60 +810,99 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 快门触发核心逻辑
+    // MARK: - 快门触发核心逻辑 (全异步零卡顿、保留原生 HDR / EXIF 写入相册)
     private func handleMainShutterAction() {
         if captureMode == 0 {
-            // 拍照流程: 48MP 高清捕捉 + 闪光动效 + 直存相册
             impactFeedback.impactOccurred()
-            withAnimation(.easeInOut(duration: 0.08)) { isFlashing = true }
+            withAnimation(.easeInOut(duration: 0.06)) { isFlashing = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-                withAnimation(.easeInOut(duration: 0.15)) { isFlashing = false }
+                withAnimation(.easeInOut(duration: 0.14)) { isFlashing = false }
             }
             
-            cameraManager.capturePhoto { photo in
-                guard let image = photo else { return }
-                
-                // 核心：若勾选启用了胶片 LUT 滤镜，则调用 Metal 渲染引擎将 3D LUT 片元着色烘焙至大图
-                let finalImageToSave: UIImage
-                if self.isLutFilterEnabled && self.activeLutName != "00-原画" {
-                    finalImageToSave = MetalRenderer.shared.applyFilterToImage(image)
-                } else {
-                    finalImageToSave = image
+            let shouldApplyFilter = self.isLutFilterEnabled && self.activeLutName != "00-原画"
+            let currentLutLabel = shouldApplyFilter ? self.activeLutName : "00-原画 (RAW)"
+            let zoomAtCapture = self.cameraManager.currentZoom
+            
+            // 仅当用户选择非 4:3 画幅或关闭无损直存时才裁切，默认 4:3 原画 100% 透传原生文件流
+            let targetRatio: CGFloat? = (self.photoAspectRatio == .ratio4x3 && self.preserveOriginalHDR && !shouldApplyFilter)
+                ? nil
+                : self.photoAspectRatio.widthOverHeight
+            
+            cameraManager.captureRawPhotoData { rawData, _ in
+                guard let rawData = rawData else {
+                    self.showToast("拍照失败，请检查相机状态")
+                    return
                 }
                 
-                // 1. 保存到系统相册
-                UIImageWriteToSavedPhotosAlbum(finalImageToSave, nil, nil, nil)
-                
-                // 2. 存入当前 App 状态供在 App 内部立即查看成片
-                self.lastCapturedPhoto = finalImageToSave
-                self.lastCapturedFilterName = self.isLutFilterEnabled ? self.activeLutName : "00-原画 (RAW)"
-                self.lastCapturedZoomFactor = self.cameraManager.currentZoom
-                self.lastCapturedDate = Date()
-                
-                // 3. 缩略图脉冲反馈
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
-                    self.thumbnailScaleEffect = 1.25
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        self.thumbnailScaleEffect = 1.0
+                MetalRenderer.shared.processCapturedPhotoData(
+                    rawData,
+                    applyFilter: shouldApplyFilter,
+                    displayAspectRatio: targetRatio
+                ) { finalData, previewImage in
+                    if let preview = previewImage {
+                        self.lastCapturedPhoto = preview
+                        self.lastCapturedFilterName = currentLutLabel
+                        self.lastCapturedZoomFactor = zoomAtCapture
+                        self.lastCapturedDate = Date()
+                        
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+                            self.thumbnailScaleEffect = 1.25
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                self.thumbnailScaleEffect = 1.0
+                            }
+                        }
+                    }
+                    
+                    guard let photoDataToSave = finalData else {
+                        self.showToast("成片处理失败")
+                        return
+                    }
+                    
+                    self.savePhotoDataToAlbum(photoDataToSave) { success, errMsg in
+                        if success {
+                            let toastTitle = shouldApplyFilter
+                                ? "✓ 胶片成片已保留 EXIF 存入相册"
+                                : "✓ 原生高清照片已无损存入相册"
+                            self.showToast(toastTitle)
+                        } else {
+                            self.showToast(errMsg ?? "相册保存失败，请检查权限")
+                        }
                     }
                 }
-                
-                let toastTitle = self.isLutFilterEnabled ? "✓ 胶片成片已生成并存入相册" : "✓ 原画照片已保存至系统相册"
-                self.showToast(toastTitle)
             }
         } else {
-            // 视频流程: 60fps 视频录制直出 (若开启了滤镜则带滤镜，若未开启则原生原画直出)
             impactFeedback.impactOccurred()
             if cameraManager.isRecordingVideo {
                 cameraManager.stopRecordingVideo()
-                showToast("✓ 60fps 视频已保存至相册")
+                showToast("正在封装保存 60fps 视频...")
             } else {
-                cameraManager.startRecordingVideo { recordedURL in
-                    if recordedURL != nil {
-                        showToast("✓ 60fps 视频已保存至相册")
+                cameraManager.startRecordingVideo { recordedURL, errMsg in
+                    if let errMsg = errMsg {
+                        self.showToast(errMsg)
+                    } else if recordedURL != nil {
+                        self.showToast("✓ 60fps 视频已保存至相册")
                     }
+                }
+            }
+        }
+    }
+    
+    private func savePhotoDataToAlbum(_ data: Data, completion: @escaping (Bool, String?) -> Void) {
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else {
+                DispatchQueue.main.async {
+                    completion(false, "无相册写入权限，请在系统设置中开启")
+                }
+                return
+            }
+            PHPhotoLibrary.shared().performChanges({
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: .photo, data: data, options: nil)
+            }) { success, error in
+                DispatchQueue.main.async {
+                    completion(success, error?.localizedDescription)
                 }
             }
         }
@@ -835,16 +921,18 @@ public struct CameraView: View {
         }
     }
     
-    // MARK: - 触控对焦
+    // MARK: - 精确触控对焦 (坐标限定在取景器内部，结合 Aspect Fill 反算传感器焦点)
     private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
         focusDismissTask?.cancel()
-        focusPoint = location
-        focusRingScale = 1.35
+        let safeX = max(28, min(location.x, size.width - 28))
+        let safeY = max(28, min(location.y, size.height - 28))
+        focusPoint = CGPoint(x: safeX, y: safeY)
+        focusRingScale = 1.32
         showFocusRing = true
         
-        let focusX = location.x / size.width
-        let focusY = location.y / size.height
-        cameraManager.focus(at: CGPoint(x: focusX, y: focusY))
+        let focusX = location.x / max(size.width, 1)
+        let focusY = location.y / max(size.height, 1)
+        cameraManager.focus(atNormalizedViewPoint: CGPoint(x: focusX, y: focusY))
         selectionFeedback.selectionChanged()
         
         withAnimation(.spring(response: 0.22, dampingFraction: 0.55)) {
@@ -858,41 +946,276 @@ public struct CameraView: View {
             }
         }
         focusDismissTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25, execute: task)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4, execute: task)
     }
     
     private var focusIndicatorView: some View {
         ZStack {
-            Rectangle()
-                .stroke(Color(red: 1.0, green: 0.85, blue: 0.2), lineWidth: 1.5)
-                .frame(width: 64, height: 64)
-                .scaleEffect(focusRingScale)
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(red: 1.0, green: 0.85, blue: 0.2), lineWidth: 1.6)
+                .frame(width: 66, height: 66)
+            
+            Circle()
+                .fill(Color(red: 1.0, green: 0.85, blue: 0.2))
+                .frame(width: 4, height: 4)
+        }
+        .scaleEffect(focusRingScale)
+    }
+}
+
+// MARK: - 独立丝滑对数阻尼变焦刻度轮 (拖动过程中不触发 CameraView 全树重绘)
+struct ZoomDialView: View {
+    @ObservedObject var cameraManager: CameraManager
+    let uiRotationAngle: Double
+    
+    @State private var isDialExpanded: Bool = false
+    @State private var draggingZoom: CGFloat? = nil
+    @State private var dragStartZoom: CGFloat = 1.0
+    @State private var lastHapticStep: Int = -1
+    @State private var collapseWorkItem: DispatchWorkItem? = nil
+    
+    private let selectionFeedback = UISelectionFeedbackGenerator()
+    
+    // 当前界面显示倍率 (拖动中使用本地状态实现 120Hz 零延迟，非拖动同步 cameraManager)
+    private var displayZoom: CGFloat {
+        draggingZoom ?? cameraManager.currentZoom
+    }
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            if isDialExpanded {
+                logarithmicRulerView
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            } else {
+                compactPresetBar
+                    .transition(.opacity)
+            }
+        }
+        .frame(height: 68)
+        .padding(.horizontal, 16)
+        .contentShape(Rectangle())
+        .gesture(zoomDragGesture)
+    }
+    
+    // 常态：紧凑硬件焦段微胶囊组
+    private var compactPresetBar: some View {
+        VStack(spacing: 4) {
+            Text(String(format: "%.1f×", displayZoom))
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 2)
+                .background(Color.black.opacity(0.65))
+                .clipShape(Capsule())
+            
+            HStack(spacing: 10) {
+                ForEach(cameraManager.availableZoomPresets, id: \.self) { val in
+                    zoomPresetButton(val: val)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.black.opacity(0.42))
+            .clipShape(Capsule())
+        }
+    }
+    
+    private func zoomPresetButton(val: CGFloat) -> some View {
+        let presets = cameraManager.availableZoomPresets
+        let nearest = presets.min(by: { abs($0 - displayZoom) < abs($1 - displayZoom) }) ?? 1.0
+        let isActive = abs(val - nearest) < 0.01
+        
+        let title: String = {
+            if isActive && abs(displayZoom - val) >= 0.15 {
+                return String(format: "%.1f×", displayZoom)
+            }
+            if val == 0.5 { return ".5" }
+            if val == 1.0 { return "1×" }
+            return String(format: "%.0f", val)
+        }()
+        
+        return Text(title)
+            .font(.system(size: isActive ? 12 : 11, weight: .bold, design: .rounded))
+            .foregroundColor(isActive ? Color(red: 1.0, green: 0.88, blue: 0.35) : .white)
+            .frame(width: 34, height: 34)
+            .background(isActive ? Color.black.opacity(0.85) : Color.black.opacity(0.45))
+            .clipShape(Circle())
+            .overlay(
+                Circle()
+                    .stroke(isActive ? Color(red: 1.0, green: 0.88, blue: 0.35) : Color.white.opacity(0.22), lineWidth: isActive ? 1.5 : 0.8)
+            )
+            .scaleEffect(isActive ? 1.06 : 1.0)
+            .onTapGesture {
+                selectionFeedback.selectionChanged()
+                withAnimation(.spring(response: 0.25)) {
+                    cameraManager.rampZoom(to: val)
+                }
+            }
+            .rotationEffect(.degrees(uiRotationAngle))
+            .animation(.spring(response: 0.25), value: uiRotationAngle)
+    }
+    
+    // 滑动展开态：对数刻度尺 (居中金色指示针 + 平滑移动刻度线)
+    private var logarithmicRulerView: some View {
+    private var logarithmicRulerView: some View {
+        VStack(spacing: 4) {
+            Text(String(format: "%.1f×", displayZoom))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(Color(red: 1.0, green: 0.88, blue: 0.35))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 2)
+                .background(Color.black.opacity(0.8))
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(Color(red: 1.0, green: 0.88, blue: 0.35).opacity(0.7), lineWidth: 1))
+            
+            GeometryReader { geo in
+                let centerX = geo.size.width / 2.0
+                let pixelsPerLogUnit: CGFloat = 135.0
+                let currentLog = log(max(0.5, displayZoom))
+                
+                // 生成 0.5x ~ maxZoom 的对数分布刻度
+                let tickValues: [CGFloat] = {
+                    var list: [CGFloat] = []
+                    var v: CGFloat = 0.5
+                    while v <= cameraManager.maxZoom + 0.01 {
+                        list.append((v * 10.0).rounded() / 10.0)
+                        if v < 1.0 {
+                            v += 0.1
+                        } else if v < 3.0 {
+                            v += 0.2
+                        } else if v < 6.0 {
+                            v += 0.5
+                        } else {
+                            v += 1.0
+                        }
+                    }
+                    return list
+                }()
+                
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.black.opacity(0.55))
+                    
+                    ForEach(tickValues, id: \.self) { val in
+                        let tickLog = log(max(0.5, val))
+                        let offsetX = (tickLog - currentLog) * pixelsPerLogUnit
+                        let posX = centerX + offsetX
+                        
+                        if posX >= 6 && posX <= geo.size.width - 6 {
+                            let isMajor = cameraManager.availableZoomPresets.contains(where: { abs($0 - val) < 0.05 }) || abs(val - val.rounded()) < 0.01
+                            VStack(spacing: 2) {
+                                Rectangle()
+                                    .fill(isMajor ? Color.white.opacity(0.85) : Color.white.opacity(0.35))
+                                    .frame(width: isMajor ? 1.5 : 1.0, height: isMajor ? 14 : 8)
+                            }
+                            .position(x: posX, y: geo.size.height / 2.0)
+                        }
+                    }
+                    
+                    // 中央固定金色游标指针
+                    Rectangle()
+                        .fill(Color(red: 1.0, green: 0.88, blue: 0.35))
+                        .frame(width: 2.5, height: 22)
+                        .position(x: centerX, y: geo.size.height / 2.0)
+                }
+            }
+            .frame(height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+    
+    // 对数阻尼手势：划动等距实现倍率等比翻倍/减半，支持关键点轻震动吸附
+    private var zoomDragGesture: some Gesture {
+        DragGesture(minimumDistance: 5)
+            .onChanged { value in
+                collapseWorkItem?.cancel()
+                if draggingZoom == nil {
+                    dragStartZoom = cameraManager.currentZoom
+                    draggingZoom = dragStartZoom
+                    selectionFeedback.prepare()
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        isDialExpanded = true
+                    }
+                }
+                
+                // 对数灵敏度：左划放大，右划缩小 (每 92pt 倍率翻倍)
+                let sensitivity: CGFloat = 0.0075
+                let rawTarget = dragStartZoom * exp(-value.translation.width * sensitivity)
+                var clamped = max(cameraManager.minZoom, min(rawTarget, cameraManager.maxZoom))
+                
+                // 靠近关键焦段时轻微磁吸
+                for preset in cameraManager.availableZoomPresets {
+                    if abs(clamped - preset) < 0.035 {
+                        clamped = preset
+                        break
+                    }
+                }
+                
+                let rounded = (clamped * 10.0).rounded() / 10.0
+                if rounded != draggingZoom {
+                    draggingZoom = rounded
+                    cameraManager.setZoom(factor: rounded, publishToUI: false)
+                    
+                    // 仅在跨过 0.5x 整数步进刻度时轻震反馈，绝不每 0.1x 狂震卡顿
+                    let stepBucket = Int((rounded * 2.0).rounded())
+                    if stepBucket != lastHapticStep {
+                        lastHapticStep = stepBucket
+                        selectionFeedback.selectionChanged()
+                    }
+                }
+            }
+            .onEnded { _ in
+                if let finalZoom = draggingZoom {
+                    cameraManager.setZoom(factor: finalZoom, publishToUI: true)
+                }
+                draggingZoom = nil
+                lastHapticStep = -1
+                
+                let workItem = DispatchWorkItem {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isDialExpanded = false
+                    }
+                }
+                collapseWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: workItem)
+            }
+    }
+}
+
+// MARK: - 三分线辅助网格
+struct RuleOfThirdsGridOverlay: View {
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            Path { path in
+                path.move(to: CGPoint(x: w / 3.0, y: 0))
+                path.addLine(to: CGPoint(x: w / 3.0, y: h))
+                path.move(to: CGPoint(x: w * 2.0 / 3.0, y: 0))
+                path.addLine(to: CGPoint(x: w * 2.0 / 3.0, y: h))
+                
+                path.move(to: CGPoint(x: 0, y: h / 3.0))
+                path.addLine(to: CGPoint(x: w, y: h / 3.0))
+                path.move(to: CGPoint(x: 0, y: h * 2.0 / 3.0))
+                path.addLine(to: CGPoint(x: w, y: h * 2.0 / 3.0))
+            }
+            .stroke(Color.white.opacity(0.28), lineWidth: 0.7)
         }
     }
 }
 
-/// 上半圆拱形轨道导引 Shape
-struct ArcDialTrackShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let startAngle = Angle(degrees: 200)
-        let endAngle = Angle(degrees: 340)
-        let center = CGPoint(x: rect.midX, y: rect.height * 2.5)
-        let radius = rect.height * 2.2
-        path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
-        return path
-    }
-}
-
-/// 媒体相册与最近成片专业检视弹窗 (支持在 App 内全屏检视带滤镜成片、手势缩放与系统分享)
+/// 媒体相册与最近成片专业检视弹窗 (已接通 RetouchView 照片精修与 VideoRetouchView 视频精修入口)
 struct MediaGallerySheet: View {
     @Environment(\.presentationMode) var presentationMode
     let lastPhoto: UIImage?
+    let lastVideoURL: URL?
     let lutName: String
     let zoomFactor: CGFloat
     let captureDate: Date
     
     @State private var showShareSheet: Bool = false
+    @State private var showPhotoRetouch: Bool = false
+    @State private var showVideoRetouch: Bool = false
     @State private var zoomScale: CGFloat = 1.0
     @State private var lastZoomScale: CGFloat = 1.0
 
@@ -905,7 +1228,6 @@ struct MediaGallerySheet: View {
                     VStack(spacing: 0) {
                         Spacer()
                         
-                        // 高清大图检视 (双击缩放与捏合缩放)
                         Image(uiImage: photo)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
@@ -939,8 +1261,8 @@ struct MediaGallerySheet: View {
                         
                         Spacer()
                         
-                        // 底部专业黑金参数条 (胶卷、焦段、分辨率、拍摄时间)
-                        VStack(spacing: 8) {
+                        // 底部操作与参数卡片
+                        VStack(spacing: 10) {
                             HStack {
                                 Label(lutName, systemImage: "film.fill")
                                     .font(.system(size: 13, weight: .bold))
@@ -965,9 +1287,17 @@ struct MediaGallerySheet: View {
                                     .font(.system(size: 11))
                                     .foregroundColor(.white.opacity(0.5))
                                 Spacer()
-                                Text("✓ 已应用 3D LUT 胶片上色并存入相册")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(Color(red: 0.0, green: 0.95, blue: 0.45))
+                                Button(action: {
+                                    showPhotoRetouch = true
+                                }) {
+                                    Label("后期精修调色", systemImage: "slider.horizontal.3")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(.black)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color(red: 1.0, green: 0.88, blue: 0.35))
+                                        .clipShape(Capsule())
+                                }
                             }
                         }
                         .padding(14)
@@ -978,10 +1308,9 @@ struct MediaGallerySheet: View {
                                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
                         )
                         .padding(.horizontal, 16)
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 16)
                     }
                 } else {
-                    // 无近期拍摄成片时的优雅占位
                     VStack(spacing: 16) {
                         Image(systemName: "camera.viewfinder")
                             .font(.system(size: 54))
@@ -991,11 +1320,26 @@ struct MediaGallerySheet: View {
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(.white)
                         
-                        Text("轻触大快门即可拍摄，成片将自动烘焙电影胶卷色彩并在此高清检视。")
+                        Text("轻触快门即可拍摄，成片将自动保留原始画质并支持在此预览与后期精修。")
                             .font(.system(size: 13))
                             .foregroundColor(.white.opacity(0.6))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 36)
+                        
+                        if lastVideoURL != nil {
+                            Button(action: {
+                                showVideoRetouch = true
+                            }) {
+                                Label("进入最近视频精修工作台", systemImage: "video.badge.waveform")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.black)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 9)
+                                    .background(Color(red: 1.0, green: 0.88, blue: 0.35))
+                                    .clipShape(Capsule())
+                            }
+                            .padding(.top, 8)
+                        }
                     }
                 }
             }
@@ -1010,6 +1354,15 @@ struct MediaGallerySheet: View {
                         .font(.system(size: 14, weight: .semibold))
                 },
                 trailing: HStack(spacing: 16) {
+                    if lastVideoURL != nil && lastPhoto != nil {
+                        Button(action: {
+                            showVideoRetouch = true
+                        }) {
+                            Image(systemName: "film.stack")
+                                .foregroundColor(.white)
+                                .font(.system(size: 15))
+                        }
+                    }
                     if lastPhoto != nil {
                         Button(action: {
                             showShareSheet = true
@@ -1028,6 +1381,16 @@ struct MediaGallerySheet: View {
             .sheet(isPresented: $showShareSheet) {
                 if let photo = lastPhoto {
                     ActivityViewController(activityItems: [photo])
+                }
+            }
+            .sheet(isPresented: $showPhotoRetouch) {
+                if let photo = lastPhoto {
+                    RetouchView(inputImage: photo)
+                }
+            }
+            .sheet(isPresented: $showVideoRetouch) {
+                if let videoURL = lastVideoURL {
+                    VideoRetouchView(videoURL: videoURL)
                 }
             }
         }
