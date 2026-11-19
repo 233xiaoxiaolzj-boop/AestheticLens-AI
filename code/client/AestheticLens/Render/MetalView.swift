@@ -2,8 +2,8 @@ import SwiftUI
 import MetalKit
 
 /// SwiftUI 与 Metal MTKView 的高性能高刷取景桥接器
+/// 采用按需帧同步模式 (isPaused = true + enableSetNeedsDisplay = true)，1:1 跟随相机帧输出刷新，消除 GPU 空转发热与掉帧
 public struct MetalView: UIViewRepresentable {
-    @ObservedObject var cameraManager = CameraManager.shared
     var activePreset: String = "00-自然原画"
     
     public init(activePreset: String = "00-自然原画") {
@@ -17,13 +17,17 @@ public struct MetalView: UIViewRepresentable {
         mtkView.delegate = renderer
         mtkView.framebufferOnly = true
         mtkView.colorPixelFormat = .bgra8Unorm
+        mtkView.contentMode = .scaleToFill
+        mtkView.autoResizeDrawable = true
         
-        // 满血高刷生态：自适应屏幕最高刷新率 (在 iPhone Pro 120Hz ProMotion 设备上打满 120fps)
-        let maxFps = UIScreen.main.maximumFramesPerSecond
-        mtkView.preferredFramesPerSecond = maxFps > 0 ? maxFps : 60
+        // 与相机输入帧同步绘制，禁止无新帧空转浪费 GPU 算力
+        mtkView.isPaused = true
+        mtkView.enableSetNeedsDisplay = true
         
-        // 挂载帧渲染监听
-        cameraManager.onFrameCaptured = { sampleBuffer in
+        renderer.activeMTKView = mtkView
+        
+        // 挂载相机帧回调
+        CameraManager.shared.onFrameCaptured = { sampleBuffer in
             MetalRenderer.shared.updateFrame(sampleBuffer)
         }
         
@@ -32,6 +36,7 @@ public struct MetalView: UIViewRepresentable {
     }
     
     public func updateUIView(_ uiView: MTKView, context: Context) {
+        MetalRenderer.shared.activeMTKView = uiView
         MetalRenderer.shared.applyPreset(activePreset)
     }
 }

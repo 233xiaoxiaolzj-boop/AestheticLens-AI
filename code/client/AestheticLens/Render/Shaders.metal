@@ -11,8 +11,16 @@ struct VertexOut {
     float2 texCoords;
 };
 
-// 顶点着色器：全屏四边形映射
-vertex VertexOut passThroughVertex(uint vertexID [[vertex_id]]) {
+struct VertexUniforms {
+    float2 uvScale;
+    float2 uvOffset;
+};
+
+// 顶点着色器：全屏四边形映射 + Aspect Fill 等比居中裁剪，杜绝画面拉伸变形
+vertex VertexOut passThroughVertex(
+    uint vertexID [[vertex_id]],
+    constant VertexUniforms &uniforms [[buffer(0)]]
+) {
     // 两个三角形覆盖整个屏幕NDC [-1, 1]
     const float4 positions[6] = {
         float4(-1.0, -1.0, 0.0, 1.0),
@@ -35,7 +43,7 @@ vertex VertexOut passThroughVertex(uint vertexID [[vertex_id]]) {
     
     VertexOut out;
     out.position = positions[vertexID];
-    out.texCoords = texCoords[vertexID];
+    out.texCoords = uniforms.uvOffset + texCoords[vertexID] * uniforms.uvScale;
     return out;
 }
 
@@ -96,4 +104,3 @@ fragment float4 passThroughFragmentShader(
     constexpr sampler linearSampler(coord::normalized, filter::linear, address::clamp_to_edge);
     return cameraTexture.sample(linearSampler, in.texCoords);
 }
-
